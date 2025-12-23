@@ -1,34 +1,29 @@
 const nodemailer = require("nodemailer");
 
-const isEmailConfigured = () => {
-  return (
-    process.env.EMAIL_USER && process.env.EMAIL_PASS && process.env.ADMIN_EMAIL
-  );
-};
 
 const createTransporter = () => {
   return nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false, // TLS
+    service: "Gmail",
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS, // App password
+      pass: process.env.EMAIL_PASS, // app password if 2FA enabled
     },
   });
 };
 
 const sendNewRentalNotification = async (name) => {
-  if (!isEmailConfigured()) {
-    console.warn("⚠️ Email env vars missing. Skipping email.");
-    return;
-  }
+   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+     console.log(
+       "Email credentials not provided. Skipping email notification."
+     );
+     return;
+   }
 
   try {
     const transporter = createTransporter();
 
     await transporter.sendMail({
-      from: `"Vehicle Booking System" <${process.env.EMAIL_USER}>`,
+      from: process.env.EMAIL_USER,
       to: process.env.ADMIN_EMAIL,
       subject: "🚗 New Vehicle Rental Request",
       text: `A new vehicle request has been submitted by ${name}. Please check the admin panel.`,
