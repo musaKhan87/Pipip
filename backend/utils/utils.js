@@ -1,39 +1,44 @@
-const nodemailer = require("nodemailer");
+const SibApiV3Sdk = require("sib-api-v3-sdk");
 
-
-const createTransporter = () => {
-  return nodemailer.createTransport({
-    service: "Gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS, // app password if 2FA enabled
-    },
-  });
+const isEmailConfigured = () => {
+  return !!(
+    process.env.BREVO_API_KEY &&
+    process.env.ADMIN_EMAIL &&
+    process.env.SENDER_EMAIL
+  );
 };
 
 const sendNewRentalNotification = async (name) => {
-   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-     console.log(
-       "Email credentials not provided. Skipping email notification."
-     );
-     return;
-   }
+  if (!isEmailConfigured()) {
+    console.warn("Email not configured. Skipping admin notification.");
+    return;
+  }
 
   try {
-    const transporter = createTransporter();
+    // Configure Brevo client
+    const client = SibApiV3Sdk.ApiClient.instance;
+    client.authentications["api-key"].apiKey = process.env.BREVO_API_KEY;
 
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: process.env.ADMIN_EMAIL,
+    const apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+
+    await apiInstance.sendTransacEmail({
+      sender: {
+        email: process.env.SENDER_EMAIL,
+        name: "Vehicle Booking System",
+      },
+      to: [
+        {
+          email: process.env.ADMIN_EMAIL,
+        },
+      ],
       subject: "🚗 New Vehicle Rental Request",
-      text: `A new vehicle request has been submitted by ${name}. Please check the admin panel.`,
+      textContent: `A new vehicle request has been submitted by ${name}. Please check the admin panel.`,
     });
 
-    console.log("✅ Admin notification email sent");
+    console.log("✅ Admin notification email sent via Brevo");
   } catch (error) {
-    console.error("❌ Email sending failed:");
-    console.error(error); // FULL error (important)
+    console.error("❌ Brevo email failed:", error.message);
   }
 };
 
-module.exports= sendNewRentalNotification;
+module.exports = sendNewRentalNotification;
