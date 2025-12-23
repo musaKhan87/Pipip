@@ -14,7 +14,9 @@ const Hero = () => {
 
 
   const getServer = async () => {
-    const response = await axios.get("http://localhost:5000/api/rentals");
+    const response = await axios.get(
+      "https://pipip-backend.onrender.com/api/rentals"
+    );
   };
 
   

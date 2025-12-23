@@ -26,7 +26,9 @@ const Admin = () => {
 
   const fetchSubmissions = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/rentals/admin");
+      const res = await axios.get(
+        "https://pipip-backend.onrender.com/api/rentals/admin"
+      );
       setSubmissions(res.data);
     } catch (error) {
       console.error("Failed to fetch rentals", error);
@@ -49,9 +51,12 @@ const Admin = () => {
 
   const updateStatus = async (id, status) => {
     try {
-      await axios.put(`http://localhost:5000/api/rentals/${id}/status`, {
-        status,
-      });
+      await axios.put(
+        `https://pipip-backend.onrender.com/api/rentals/${id}/status`,
+        {
+          status,
+        }
+      );
       fetchSubmissions(); // refresh list
     } catch (error) {
       console.error("Status update failed", error);
