@@ -1,5 +1,5 @@
 const RentalRequest = require("../models/RentalForm");
-const nodemailer = require("nodemailer");
+const sendNewRentalNotification = require("../utils/utils");
 
 const getServer= async (req,res) => {
   try {
@@ -9,52 +9,6 @@ const getServer= async (req,res) => {
   }
 }
 
-const isEmailConfigured = () => {
-  return !!(
-    process.env.EMAIL_USER &&
-    process.env.EMAIL_PASS &&
-    process.env.ADMIN_EMAIL
-  );
-};
-
-const createTransporter = () => {
-  return nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS, // Gmail App Password
-    },
-  });
-};
-
-const sendNewRentalNotification = async (name) => {
-  if (!isEmailConfigured()) {
-    console.warn("Email not configured. Skipping admin notification.");
-    return;
-  }
-
-  try {
-    const transporter = createTransporter();
-    await transporter.verify();
-
-    await transporter.sendMail({
-      from: `"Vehicle Booking System" <${process.env.EMAIL_USER}>`,
-      to: process.env.ADMIN_EMAIL,
-      subject: "New Vehicle Request",
-      text: `A new vehicle request has been submitted by ${name}. Please check the admin panel.`,
-    });
-
-    console.log(process.env.ADMIN_EMAIL);
-    console.log(process.env.EMAIL_PASS);
-    console.log(process.env.EMAIL_USER);
-
-
-    
-    console.log("✅ Admin notification email sent");
-  } catch (error) {
-    console.error("❌ Admin email failed:", error.message);
-  }
-};
 
 
 
@@ -71,16 +25,19 @@ const createRentalRequest = async (req, res) => {
 
     const rental = await RentalRequest.create(req.body);
 
-    // -------------------------
-    // Send notification email
-    // -------------------------
-    sendNewRentalNotification(name);
+    // ✅ WAIT for email (do not fire-and-forget)
+    await sendNewRentalNotification(name);
 
-    res.status(201).json({ message: "Request submitted successfully", rental });
+    res.status(201).json({
+      message: "Request submitted successfully",
+      rental,
+    });
   } catch (error) {
+    console.error("Create rental error:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 const getAllRentalRequests = async (req, res) => {
   try {
