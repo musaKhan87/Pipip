@@ -1,13 +1,11 @@
 const RentalRequest = require("../models/RentalForm");
 const nodemailer = require("nodemailer");
 
-const getServer= async (req,res) => {
+const getServer = async (req, res) => {
   try {
     return res.status(200).json("Server started");
-  } catch (error) {
-    
-  }
-}
+  } catch (error) {}
+};
 
 const createRentalRequest = async (req, res) => {
   try {
@@ -25,23 +23,20 @@ const createRentalRequest = async (req, res) => {
     // Send notification email
     // -------------------------
     const transporter = nodemailer.createTransport({
-      service: "gmail", // or any SMTP provider
+      service: "gmail",
       auth: {
-        user: process.env.EMAIL_USER, // Your email
-        pass: process.env.EMAIL_PASS, // App password or email password
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
       },
     });
 
-    const mailOptions = {
+    await transporter.verify(); // verify connection
+
+    await transporter.sendMail({
       from: `"Vehicle Booking System" <${process.env.EMAIL_USER}>`,
-      to: process.env.ADMIN_EMAIL, // Admin email
+      to: process.env.ADMIN_EMAIL,
       subject: "New Vehicle Request",
       text: `A new vehicle request has been submitted by ${name}. Please check the admin panel.`,
-    };
-
-    transporter.sendMail(mailOptions, (err, info) => {
-      if (err) console.error("Email error:", err);
-      else console.log("Notification email sent:", info.response);
     });
 
     res.status(201).json({ message: "Request submitted successfully", rental });
@@ -91,5 +86,5 @@ module.exports = {
   createRentalRequest,
   getAllRentalRequests,
   updateRentalStatus,
-  getServer
+  getServer,
 };

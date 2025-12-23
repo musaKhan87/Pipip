@@ -11,6 +11,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173", // Development
+      "https://pipip-frontend.onrender.com/", // Production frontend URL
+    ],
+    credentials: true,
+  })
+);
+
+
 
 app.use("/api/rentals", require("./routes/RentalRoutes"));
 
