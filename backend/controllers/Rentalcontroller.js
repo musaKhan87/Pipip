@@ -44,6 +44,12 @@ const sendNewRentalNotification = async (name) => {
       text: `A new vehicle request has been submitted by ${name}. Please check the admin panel.`,
     });
 
+    console.log(process.env.ADMIN_EMAIL);
+    console.log(process.env.EMAIL_PASS);
+    console.log(process.env.EMAIL_USER);
+
+
+    
     console.log("✅ Admin notification email sent");
   } catch (error) {
     console.error("❌ Admin email failed:", error.message);
