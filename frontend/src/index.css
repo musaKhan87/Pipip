@@ -1,0 +1,198 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Righteous&display=swap');
+
+@layer base {
+  :root {
+    /* Deep navy blue theme inspired by Mumbai night */
+    --background: 220 60% 8%;
+    --foreground: 45 100% 96%;
+
+    --card: 220 55% 12%;
+    --card-foreground: 45 100% 96%;
+
+    --popover: 220 55% 12%;
+    --popover-foreground: 45 100% 96%;
+
+    /* Golden amber - sunset accent */
+    --primary: 38 95% 55%;
+    --primary-foreground: 220 60% 8%;
+
+    /* Teal - scooter color */
+    --secondary: 174 65% 50%;
+    --secondary-foreground: 220 60% 8%;
+
+    --muted: 220 40% 18%;
+    --muted-foreground: 220 20% 65%;
+
+    --accent: 174 65% 50%;
+    --accent-foreground: 220 60% 8%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 45 100% 96%;
+
+    --border: 220 40% 20%;
+    --input: 220 40% 15%;
+    --ring: 38 95% 55%;
+
+    --radius: 0.75rem;
+
+    /* Custom Pipip colors */
+    --sunset-start: 38 95% 55%;
+    --sunset-end: 25 100% 50%;
+    --navy-deep: 220 60% 6%;
+    --navy-light: 220 50% 15%;
+    --teal-glow: 174 65% 50%;
+    --star-shimmer: 45 100% 90%;
+
+    /* Shadows and glows */
+    --shadow-golden: 0 10px 40px -10px hsl(38 95% 55% / 0.4);
+    --shadow-teal: 0 10px 40px -10px hsl(174 65% 50% / 0.3);
+    --glow-golden: 0 0 60px hsl(38 95% 55% / 0.3);
+    --glow-teal: 0 0 40px hsl(174 65% 50% / 0.25);
+
+    --sidebar-background: 220 55% 10%;
+    --sidebar-foreground: 45 100% 96%;
+    --sidebar-primary: 38 95% 55%;
+    --sidebar-primary-foreground: 220 60% 8%;
+    --sidebar-accent: 174 65% 50%;
+    --sidebar-accent-foreground: 220 60% 8%;
+    --sidebar-border: 220 40% 20%;
+    --sidebar-ring: 38 95% 55%;
+  }
+
+  .dark {
+    --background: 220 60% 8%;
+    --foreground: 45 100% 96%;
+    --card: 220 55% 12%;
+    --card-foreground: 45 100% 96%;
+    --popover: 220 55% 12%;
+    --popover-foreground: 45 100% 96%;
+    --primary: 38 95% 55%;
+    --primary-foreground: 220 60% 8%;
+    --secondary: 174 65% 50%;
+    --secondary-foreground: 220 60% 8%;
+    --muted: 220 40% 18%;
+    --muted-foreground: 220 20% 65%;
+    --accent: 174 65% 50%;
+    --accent-foreground: 220 60% 8%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 45 100% 96%;
+    --border: 220 40% 20%;
+    --input: 220 40% 15%;
+    --ring: 38 95% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Poppins', sans-serif;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Righteous', cursive;
+  }
+
+  .gradient-sunset {
+    background: linear-gradient(135deg, hsl(var(--sunset-start)) 0%, hsl(var(--sunset-end)) 100%);
+  }
+
+  .gradient-teal {
+    background: linear-gradient(135deg, hsl(var(--teal-glow)) 0%, hsl(174 70% 40%) 100%);
+  }
+
+  .gradient-navy {
+    background: linear-gradient(180deg, hsl(var(--navy-deep)) 0%, hsl(var(--navy-light)) 100%);
+  }
+
+  .text-gradient-sunset {
+    background: linear-gradient(135deg, hsl(var(--sunset-start)) 0%, hsl(var(--sunset-end)) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-teal {
+    background: linear-gradient(135deg, hsl(var(--teal-glow)) 0%, hsl(174 70% 35%) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .shadow-golden {
+    box-shadow: var(--shadow-golden);
+  }
+
+  .shadow-teal {
+    box-shadow: var(--shadow-teal);
+  }
+
+  .glow-golden {
+    box-shadow: var(--glow-golden);
+  }
+
+  .glow-teal {
+    box-shadow: var(--glow-teal);
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  .animate-twinkle {
+    animation: twinkle 3s ease-in-out infinite;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse-slow 4s ease-in-out infinite;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+
+/* Make date picker icon white */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+}
