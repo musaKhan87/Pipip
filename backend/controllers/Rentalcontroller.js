@@ -12,7 +12,6 @@ const getServer= async (req,res) => {
 
 
 
-
 const createRentalRequest = async (req, res) => {
   try {
     const { name, phone, pickupLocation, date, duration } = req.body;
