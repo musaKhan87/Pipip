@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Check, IndianRupee, Clock, Calendar, Truck } from "lucide-react";
 import { Button } from "./ui/Button";
+import { NavLink } from "react-router-dom";
 
 const Pricing = () => {
   const plans = [
@@ -169,15 +170,16 @@ const Pricing = () => {
               </ul>
 
               {/* CTA */}
-              <a href="#rent" className="block">
+              <NavLink to="/catalog" className="block">
                 <Button
                   variant={plan.popular ? "hero" : "teal"}
                   size="lg"
                   className="w-full"
+                  
                 >
                   Book Now
                 </Button>
-              </a>
+              </NavLink>
             </motion.div>
           ))}
         </div>

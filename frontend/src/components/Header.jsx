@@ -1,42 +1,59 @@
 import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Phone } from "lucide-react";
 import { Button } from "./ui/Button";
 
-const HEADER_OFFSET = 96; // height of fixed header
+const HEADER_OFFSET = 96;
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
 
+  // Define links: path/id, display label, and whether it's a page or a section
   const navLinks = [
-    { id: "home", label: "Home" },
-    { id: "about", label: "About" },
-    { id: "pricing", label: "Pricing" },
-    { id: "rent", label: "Rent Now" },
-    { id: "contact", label: "Contact" },
+    { id: "home", label: "Home", type: "section" },
+    { id: "about", label: "About", type: "section" },
+    { id: "pricing", label: "Pricing", type: "section" },
+    { id: "/catalog", label: "Catalog", type: "page" }, // Direct page link
+    { id: "/contact", label: "Contact", type: "page" },
   ];
 
-  // ✅ Mobile-safe smooth scrolling
-  const scrollToSection = (id) => {
-    setIsMenuOpen(false);
+ const handleNavigation = (link) => {
+   // 1. Immediately close the menu so it doesn't block the screen
+   setIsMenuOpen(false);
 
-    setTimeout(() => {
-      const el = document.getElementById(id);
-      if (!el) return;
+   // 2. Case 1: Direct Page Navigation (Catalog/Contact)
+   if (link.type === "page") {
+     navigate(link.id);
+     return;
+   }
 
-      const y =
-        el.getBoundingClientRect().top + window.pageYOffset - HEADER_OFFSET;
+   // 3. Case 2: Scroll Navigation from a different page
+   if (location.pathname !== "/") {
+     navigate("/", { state: { scrollTo: link.id } });
+     return;
+   }
 
-      window.scrollTo({
-        top: y,
-        behavior: "smooth",
-      });
+   // 4. Case 3: Smooth Scroll on the Home page
+   // We use a small timeout (10ms) to allow the Mobile Menu
+   // to start its closing animation so the scroll position is accurate
+   setTimeout(() => {
+     const el = document.getElementById(link.id);
+     if (!el) return;
 
-      // ✅ Correct way to update hash
-      window.history.pushState(null, "", `#${id}`);
-    }, 300);
-  };
+     const y =
+       el.getBoundingClientRect().top + window.pageYOffset - HEADER_OFFSET;
 
+     window.scrollTo({
+       top: y,
+       behavior: "smooth",
+     });
+
+     window.history.pushState(null, "", `#${link.id}`);
+   }, 10);
+ };
   return (
     <motion.header
       initial={{ y: -100 }}
@@ -44,8 +61,10 @@ const Header = () => {
       className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border"
     >
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-        {/* Logo */}
-        <button onClick={() => scrollToSection("home")}>
+        {/* Logo - Clicks back to home top */}
+        <button
+          onClick={() => handleNavigation({ id: "home", type: "section" })}
+        >
           <img
             src="/logo.jpeg"
             alt="Pipip Logo"
@@ -58,8 +77,12 @@ const Header = () => {
           {navLinks.map((link) => (
             <button
               key={link.id}
-              onClick={() => scrollToSection(link.id)}
-              className="text-foreground/80 hover:text-primary transition-colors font-medium"
+              onClick={() => handleNavigation(link)}
+              className={`transition-colors font-medium ${
+                location.pathname === link.id
+                  ? "text-primary"
+                  : "text-foreground/80 hover:text-primary"
+              }`}
             >
               {link.label}
             </button>
@@ -103,8 +126,12 @@ const Header = () => {
               {navLinks.map((link) => (
                 <button
                   key={link.id}
-                  onClick={() => scrollToSection(link.id)}
-                  className="text-left text-foreground/80 hover:text-primary transition-colors font-medium py-2"
+                  onClick={() => handleNavigation(link)}
+                  className={`text-left transition-colors font-medium py-2 ${
+                    location.pathname === link.id
+                      ? "text-primary"
+                      : "text-foreground/80"
+                  }`}
                 >
                   {link.label}
                 </button>

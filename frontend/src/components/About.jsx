@@ -91,10 +91,7 @@ const About = () => {
               <p className="text-muted-foreground">{feature.description}</p>
             </motion.div>
           ))}
-        </div>
-
-      
-        
+        </div>        
       </div>
     </section>
   );

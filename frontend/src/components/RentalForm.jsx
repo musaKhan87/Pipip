@@ -115,7 +115,6 @@ const RentalForm = () => {
         }
       );
 
-      console.log("Backend response:", response.data);
 
       setIsSubmitted(true);
 
