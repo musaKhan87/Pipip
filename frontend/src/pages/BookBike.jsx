@@ -318,34 +318,34 @@ export default function BookBike() {
     }
   };
 
-const checkStatusAndConfirm = async (orderId, customerId) => {
-  try {
-    // Pass booking details in query params so backend can save them
-    const queryParams = new URLSearchParams({
-      customerId: customerId,
-      bikeId: bike._id,
-      startDate: new Date(startDate).toISOString(),
-      endDate: new Date(endDate).toISOString(),
-      amount: calculatePrice(),
-    }).toString();
+  const checkStatusAndConfirm = async (orderId, customerId) => {
+    try {
+      // Pass booking details in query params so backend can save them
+      const queryParams = new URLSearchParams({
+        customerId: customerId,
+        bikeId: bike._id,
+        startDate: new Date(startDate).toISOString(),
+        endDate: new Date(endDate).toISOString(),
+        amount: calculatePrice(),
+      }).toString();
 
-    const verifyRes = await fetch(
-      `http://localhost:5000/api/payment/verify/${orderId}?${queryParams}`,
-    );
-    const verifyData = await verifyRes.json();
+      const verifyRes = await fetch(
+        `http://localhost:5000/api/payment/verify/${orderId}?${queryParams}`,
+      );
+      const verifyData = await verifyRes.json();
 
-    if (verifyData.status === "PAID") {
-      setBookingComplete(true);
-      toast.success("Booking Confirmed!");
-    } else {
+      if (verifyData.status === "PAID") {
+        setBookingComplete(true);
+        toast.success("Booking Confirmed!");
+      } else {
+        setPaymentFailed(true);
+      }
+    } catch (error) {
       setPaymentFailed(true);
+    } finally {
+      setIsSubmitting(false);
     }
-  } catch (error) {
-    setPaymentFailed(true);
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+  };
   // --- 2. OFFLINE (CASH) BOOKING FLOW ---
   const handleCashBooking = async () => {
     try {
@@ -380,7 +380,6 @@ const checkStatusAndConfirm = async (orderId, customerId) => {
       setIsSubmitting(false);
     }
   };
-
 
   /* =========================
      AVAILABILITY CHECK
