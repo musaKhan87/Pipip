@@ -8,7 +8,10 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   // Define your Backend URL
-  const API_BASE_URL = "http://localhost:5000/api/auth";
+  // const API_BASE_URL = "http://localhost:5000/api/auth";
+
+  const API_BASE_URL = " https://pipip-backend.onrender.com/api/auth";
+
 
   // Check for existing session on mount
   useEffect(() => {

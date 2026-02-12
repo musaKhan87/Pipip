@@ -48,6 +48,9 @@ const initialCustomerData = {
   license_image: null, // 👈 FILE
 };
 
+const API_URL = " https://pipip-backend.onrender.com/api/payment";
+
+
 export default function BookBike() {
   const { bikeId } = useParams();
 
@@ -276,7 +279,8 @@ export default function BookBike() {
 
       // 2. Create the Order on your Backend
       const res = await fetch(
-        "http://localhost:5000/api/payment/create-order",
+          // "http://localhost:5000/api/payment/create-order",
+        `${API_URL}/create-order`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -330,7 +334,8 @@ export default function BookBike() {
       }).toString();
 
       const verifyRes = await fetch(
-        `http://localhost:5000/api/payment/verify/${orderId}?${queryParams}`,
+        // `http://localhost:5000/api/payment/verify/${orderId}?${queryParams}`,
+        `${API_URL}/verify/${orderId}?${queryParams}`,
       );
       const verifyData = await verifyRes.json();
 

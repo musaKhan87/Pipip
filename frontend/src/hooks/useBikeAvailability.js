@@ -1,6 +1,8 @@
 import { useState, useCallback } from "react";
 import axios from "axios";
 
+const API_BASE = " https://pipip-backend.onrender.com/api";
+
 export function useBikeAvailability() {
   const [checking, setChecking] = useState(false);
 
@@ -15,7 +17,8 @@ export function useBikeAvailability() {
     setChecking(true);
 
     try {
-      const res = await axios.post("http://localhost:5000/api/availability", {
+      // const res = await axios.post("http://localhost:5000/api/availability", {
+      const res = await axios.post(`${API_BASE}/availability`, {
         bikeId,
         start_datetime: startDate.toISOString(),
         end_datetime: endDate.toISOString(),
