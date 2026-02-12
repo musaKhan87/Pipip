@@ -5,7 +5,6 @@ import Catalog from "./pages/Catalog";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Bikes from "./pages/admin/Bikes";
 import ScrollToTop from "./components/ScrollToTop";
-import BookBike from "./pages/BookBIke";
 import Bookings from "./pages/admin/Booking";
 import AdminLayout from "./components/admin/AdminLayout";
 import Areas from "./pages/admin/Areas";
@@ -18,6 +17,7 @@ import { AuthProvider } from "./utils/AuthProvider";
 import AdminLogin from "./pages/AdminLogin";
 import Settings from "./pages/admin/Settings";
 import Contact from "./components/Contact";
+import BookBike from "./pages/BookBIke";
 
 function App() {
   const queryClient = new QueryClient();
