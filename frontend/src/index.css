@@ -248,3 +248,20 @@ input[type="date"]::-webkit-datetime-edit-year-field {
     display: block !important;
   }
 }
+
+/* Mirror your print styles for the image download capture */
+#receipt-content.is-downloading {
+  background: white !important;
+  color: black !important;
+  border: 2px solid black !important;
+  border-radius: 0 !important;
+}
+
+#receipt-content.is-downloading .gradient-sunset,
+#receipt-content.is-downloading .is-downloading\:hidden {
+  display: none !important;
+}
+
+#receipt-content.is-downloading .hidden.is-downloading\:flex {
+  display: flex !important;
+}

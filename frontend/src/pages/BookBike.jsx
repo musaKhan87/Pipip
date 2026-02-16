@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import {
+  useParams,
+  useNavigate,
+  useSearchParams,
+  useLocation,
+} from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, differenceInHours } from "date-fns";
 import {
@@ -50,7 +55,6 @@ const initialCustomerData = {
 };
 
 const API_URL = " https://pipip-backend.onrender.com/api/payment";
-
 
 export default function BookBike() {
   const { bikeId } = useParams();
@@ -536,137 +540,176 @@ export default function BookBike() {
   //   return (
   //     <>
   //       <Header />
-  //       <main className="min-h-screen pt-32 pb-20 bg-background">
-  //         <div className="container mx-auto px-4 max-w-xl">
+  //       <main className="min-h-screen pt-32 pb-20 bg-background/50">
+  //         <div className="container mx-auto px-4 max-w-lg">
   //           <motion.div
-  //             initial={{ opacity: 0, scale: 0.9 }}
-  //             animate={{ opacity: 1, scale: 1 }}
-  //             className="bg-card border border-border rounded-[2.5rem] shadow-golden overflow-hidden print:shadow-none"
+  //             initial={{ opacity: 0, y: 40 }}
+  //             animate={{ opacity: 1, y: 0 }}
+  //             className="relative bg-card rounded-[3rem] shadow-golden overflow-hidden print:shadow-none print:border-none print:rounded-none"
   //             id="receipt-content"
   //           >
-  //             {/* Header with your Brand Gradient */}
-  //             <div className="gradient-sunset p-10 text-center text-primary-foreground relative overflow-hidden">
-  //               {/* Decorative Circle for "Classic" look */}
-  //               <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
-
-  //               <CheckCircle2 className="w-16 h-16 mx-auto mb-4 drop-shadow-lg" />
-  //               <h2 className="text-3xl font-display font-bold">
-  //                 Booking Confirmed!
-  //               </h2>
-  //               <p className="opacity-90 font-medium">
-  //                 Get ready for your ride
-  //               </p>
+  //             {/* --- WEB ONLY HEADER (Sunset Gradient) --- */}
+  //             <div className="gradient-sunset p-10 text-center text-white relative overflow-hidden print:hidden">
+  //               <div
+  //                 className="absolute inset-0 opacity-10 pointer-events-none"
+  //                 style={{
+  //                   backgroundImage:
+  //                     "radial-gradient(circle at 2px 2px, white 1px, transparent 0)",
+  //                   backgroundSize: "24px 24px",
+  //                 }}
+  //               />
+  //               <div className="relative z-10">
+  //                 <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-md border border-white/30">
+  //                   <CheckCircle2 className="w-8 h-8 text-white drop-shadow-md" />
+  //                 </div>
+  //                 <h2 className="text-2xl font-display font-black tracking-tight uppercase">
+  //                   Booking Confirmed
+  //                 </h2>
+  //                 <p className="text-white/80 text-[10px] font-medium mt-1 tracking-[0.3em] uppercase">
+  //                   Official Receipt
+  //                 </p>
+  //               </div>
   //             </div>
 
-  //             <CardContent className="p-8 md:p-10 space-y-8 bg-card">
-  //               {/* Reference Number Section */}
-  //               <div className="flex justify-between items-center border-b border-border pb-6">
+  //             {/* --- PRINT ONLY HEADER (Formal Black & White) --- */}
+  //             <div className="hidden print:flex justify-between items-start p-8 border-b-4 border-black mb-6 ">
+  //               <div>
+  //                 <h1 className="text-3xl font-black tracking-tighter text-white">
+  //                   PIPIP RENTALS
+  //                 </h1>
+  //                 <p className="text-xs text-white italic">
+  //                   Premium Bike Rental Service
+  //                 </p>
+  //               </div>
+  //               <div className="text-right">
+  //                 <h2 className="text-xl font-bold text-white uppercase">
+  //                   Tax Invoice
+  //                 </h2>
+  //                 <p className="text-xs text-white font-mono">
+  //                   #{confirmedBookingId}
+  //                 </p>
+  //               </div>
+  //             </div>
+
+  //             <CardContent className="p-8 md:p-12 space-y-8 bg-card print:bg-white">
+  //               {/* Reference Details */}
+  //               <div className="grid grid-cols-2 gap-6 border-b border-dashed border-border pb-6 print:border-black">
   //                 <div>
-  //                   <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold">
-  //                     Booking ID
-  //                   </p>
-  //                   <p className="text-lg font-mono font-bold text-primary">
-  //                     #PIPIP-
-  //                     {Math.random().toString(36).substr(2, 6).toUpperCase()}
+  //                   <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest print:text-black">
+  //                     Order ID
+  //                   </span>
+  //                   <p className="text-sm font-mono font-bold text-primary print:text-black">
+  //                     #{confirmedBookingId}
   //                   </p>
   //                 </div>
   //                 <div className="text-right">
-  //                   <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold">
-  //                     Status
-  //                   </p>
-  //                   <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-500/10 text-green-500 border border-green-500/20 uppercase">
-  //                     {paymentMethod === "online" ? "● Paid" : "● Confirmed"}
+  //                   <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest print:text-black">
+  //                     Issue Date
   //                   </span>
+  //                   <p className="text-sm font-bold text-foreground print:text-black">
+  //                     {format(new Date(), "dd MMM yyyy")}
+  //                   </p>
   //                 </div>
   //               </div>
 
-  //               {/* Ride Summary */}
-  //               <div className="space-y-5">
-  //                 <div className="flex justify-between items-center">
-  //                   <div className="flex items-center gap-3">
-  //                     <div className="p-2 bg-primary/10 rounded-lg">
-  //                       <Bike className="w-5 h-5 text-primary" />
-  //                     </div>
-  //                     <span className="text-muted-foreground font-medium">
-  //                       Vehicle
-  //                     </span>
-  //                   </div>
-  //                   <span className="font-bold text-foreground">
+  //               {/* Customer & Vehicle Details */}
+  //               <div className="space-y-4">
+  //                 <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 print:text-black">
+  //                   Summary Details
+  //                 </h4>
+
+  //                 <div className="flex justify-between items-center text-sm">
+  //                   <span className="text-muted-foreground print:text-black">
+  //                     Customer Name
+  //                   </span>
+  //                   <span className="font-bold print:text-black">
+  //                     {customerData.name}
+  //                   </span>
+  //                 </div>
+
+  //                 <div className="flex justify-between items-center text-sm">
+  //                   <span className="text-muted-foreground print:text-black">
+  //                     Contact Number
+  //                   </span>
+  //                   <span className="font-bold print:text-black">
+  //                     +91 {customerData.phone}
+  //                   </span>
+  //                 </div>
+
+  //                 <div className="flex justify-between items-center text-sm">
+  //                   <span className="text-muted-foreground print:text-black">
+  //                     Bike Model
+  //                   </span>
+  //                   <span className="font-bold print:text-black">
   //                     {bike?.model}
   //                   </span>
   //                 </div>
 
-  //                 <div className="flex justify-between items-center">
-  //                   <div className="flex items-center gap-3">
-  //                     <div className="p-2 bg-primary/10 rounded-lg">
-  //                       <MapPin className="w-5 h-5 text-primary" />
-  //                     </div>
-  //                     <span className="text-muted-foreground font-medium">
-  //                       Location
+  //                 <div className="flex justify-between items-start text-sm">
+  //                   <span className="text-muted-foreground print:text-black">
+  //                     Rental Period
+  //                   </span>
+  //                   <div className="text-right">
+  //                     <p className="font-bold print:text-black">
+  //                       {format(new Date(startDate), "MMM dd, hh:mm a")}
+  //                     </p>
+  //                     <p className="text-[10px] text-muted-foreground print:text-black">
+  //                       to {format(new Date(endDate), "MMM dd, hh:mm a")}
+  //                     </p>
+  //                   </div>
+  //                 </div>
+  //               </div>
+
+  //               {/* Amount Box */}
+  //               <div className="bg-primary/5 p-8 rounded-[2rem] border border-primary/10 print:bg-white print:border-2 print:border-black print:rounded-none">
+  //                 <div className="flex justify-between items-end">
+  //                   <div>
+  //                     <span className="text-[10px] font-black uppercase text-primary print:text-black tracking-widest">
+  //                       Total Amount Paid
+  //                     </span>
+  //                     <p className="text-5xl font-display font-black text-foreground print:text-black">
+  //                       ₹{calculatePrice()}
+  //                     </p>
+  //                   </div>
+  //                   <div className="text-right">
+  //                     <span
+  //                       className={`text-[10px] font-black px-3 py-1 rounded-full uppercase border ${paymentMethod === "online" ? "bg-green-500 text-white border-none" : "bg-orange-500 text-white border-none"} print:bg-white print:text-black print:border-black print:border`}
+  //                     >
+  //                       {paymentMethod === "online"
+  //                         ? "Verified PAID"
+  //                         : "Pay on Pickup"}
   //                     </span>
   //                   </div>
-  //                   <span className="font-bold text-foreground">
-  //                     {customerData.area}
-  //                   </span>
-  //                 </div>
-
-  //                 <div className="flex justify-between items-center">
-  //                   <div className="flex items-center gap-3">
-  //                     <div className="p-2 bg-primary/10 rounded-lg">
-  //                       <Calendar className="w-5 h-5 text-primary" />
-  //                     </div>
-  //                     <span className="text-muted-foreground font-medium">
-  //                       Pickup
-  //                     </span>
-  //                   </div>
-  //                   <span className="font-bold text-foreground">
-  //                     {format(new Date(startDate), "MMM dd, hh:mm a")}
-  //                   </span>
   //                 </div>
   //               </div>
 
-  //               {/* Amount Divider (Modern Ticket look) */}
-  //               <div className="relative py-4">
-  //                 <div className="absolute left-0 right-0 top-1/2 border-t border-dashed border-border" />
-  //                 <div className="relative flex justify-center">
-  //                   <span className="bg-card px-4 text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
-  //                     Payment Summary
-  //                   </span>
-  //                 </div>
+  //               {/* Fine Print */}
+  //               <div className="bg-muted p-4 rounded-xl text-[10px] text-muted-foreground leading-relaxed border border-border print:border-black print:text-black print:bg-white">
+  //                 <p className="font-bold mb-1 text-foreground print:text-black uppercase tracking-tighter">
+  //                   Instructions:
+  //                 </p>
+  //                 <p>• Carry original Aadhar & DL. No digital copies.</p>
+  //                 <p>• Helmets provided based on availability.</p>
+  //                 <p>
+  //                   • Vehicle should be returned at{" "}
+  //                   {customerData.area || "the pickup point"}.
+  //                 </p>
   //               </div>
 
-  //               <div className="flex justify-between items-end">
-  //                 <div>
-  //                   <p className="text-sm text-muted-foreground font-medium italic">
-  //                     Total Amount
-  //                   </p>
-  //                   <p className="text-4xl font-display font-black text-foreground">
-  //                     ₹{calculatePrice()}
-  //                   </p>
-  //                 </div>
-  //                 <div className="text-right text-[10px] text-muted-foreground font-medium leading-relaxed max-w-[150px]">
-  //                   Payable via{" "}
-  //                   {paymentMethod === "online"
-  //                     ? "Online Gateway"
-  //                     : "Cash on Pickup"}
-  //                 </div>
-  //               </div>
-
-  //               {/* Action Buttons */}
-  //               <div className="flex flex-col sm:flex-row gap-4 pt-6 print:hidden">
+  //               {/* Web Only Buttons */}
+  //               <div className="flex flex-col sm:flex-row gap-4 pt-4 print:hidden">
   //                 <Button
   //                   variant="outline"
   //                   onClick={() => window.print()}
-  //                   className="flex-1 h-12 border-primary/20 hover:bg-primary/5 text-primary font-bold rounded-2xl"
+  //                   className="flex-1 h-14 rounded-2xl border-2 border-border font-bold hover:bg-muted"
   //                 >
-  //                   <FileText className="w-4 h-4 mr-2" />
-  //                   Save PDF
+  //                   <FileText className="w-5 h-5 mr-2" /> Download Bill
   //                 </Button>
   //                 <Button
   //                   onClick={() => navigate("/")}
-  //                   className="flex-1 h-12 gradient-sunset text-primary-foreground shadow-golden font-bold rounded-2xl"
+  //                   className="flex-1 h-14 rounded-2xl gradient-sunset text-white shadow-golden font-bold"
   //                 >
-  //                   Back to Home
+  //                   Done
   //                 </Button>
   //               </div>
   //             </CardContent>
@@ -679,6 +722,114 @@ export default function BookBike() {
   // }
 
   if (bookingComplete) {
+    // 1. Make sure you have installed: npm install html2canvas
+
+    const handleDownload = async () => {
+      const element = document.getElementById("receipt-content");
+
+      try {
+        const { default: html2canvas } = await import("html2canvas");
+
+        const canvas = await html2canvas(element, {
+          scale: 3, // Higher scale for professional "Print" quality
+          useCORS: true,
+          logging: false,
+          backgroundColor: "#ffffff", // Forces white background for the whole image
+          onclone: (clonedDoc) => {
+            const receipt = clonedDoc.getElementById("receipt-content");
+
+            // 1. Force the main container to look like paper
+            receipt.style.backgroundColor = "white";
+            receipt.style.color = "black";
+            receipt.style.borderRadius = "0px";
+            receipt.style.border = "none";
+            receipt.style.boxShadow = "none";
+
+            // 2. Hide the Sunset Gradient Header (Web only)
+            const webHeader = clonedDoc.querySelector(".gradient-sunset");
+            if (webHeader) webHeader.style.display = "none";
+
+            // 3. Show the Formal Header (Print only)
+            const printHeader = clonedDoc.querySelector(".print\\:flex");
+            if (printHeader) {
+              printHeader.style.display = "flex";
+              printHeader.style.flexDirection = "row";
+              printHeader.style.justifyContent = "space-between";
+              printHeader.style.padding = "2rem";
+              printHeader.style.borderBottom = "4px solid black";
+              // Force black text for the header items
+              printHeader
+                .querySelectorAll("h1, h2, p")
+                .forEach((el) => (el.style.color = "black"));
+            }
+
+            // 4. Clean up the Content Area
+            const content = clonedDoc.querySelector(".space-y-8"); // Your CardContent
+            if (content) {
+              content.style.backgroundColor = "white";
+              content.style.padding = "2rem";
+            }
+
+            // 5. Force ALL text in the document to be Black
+            const allText = clonedDoc.querySelectorAll(
+              "p, span, h1, h2, h4, div",
+            );
+            allText.forEach((text) => {
+              text.style.color = "black";
+              text.style.borderColor = "black"; // For dashed lines
+            });
+
+            // 6. Style the Amount Box to be a simple black outline box
+            const amountBox = clonedDoc.querySelector(".bg-primary\\/5");
+            if (amountBox) {
+              amountBox.style.backgroundColor = "white";
+              amountBox.style.border = "2px solid black";
+              amountBox.style.borderRadius = "0px";
+              amountBox.style.padding = "2rem";
+            }
+
+            // 7. Style the Instructions box
+            const instructions = clonedDoc.querySelector(".bg-muted");
+            if (instructions) {
+              instructions.style.backgroundColor = "white";
+              instructions.style.border = "1px solid black";
+              instructions.style.color = "black";
+            }
+
+            const buttonRow = clonedDoc.querySelector(".print\\:hidden");
+            if (buttonRow) {
+              buttonRow.style.setProperty("display", "none", "important");
+            }
+
+            const buttonRow1 = clonedDoc.querySelector(".receipt-buttons");
+            if (buttonRow1) {
+              buttonRow1.style.display = "none";
+            }
+
+
+            // 2. FIX THE "PAY ON PICKUP" BADGE COLOR
+            // This finds the badge and forces it to be white background with black text
+            const badge = clonedDoc.querySelector(".rounded-full.uppercase");
+            if (badge) {
+              badge.style.setProperty("background-color", "white", "important");
+              badge.style.setProperty("background-image", "none", "important");
+              badge.style.setProperty("color", "black", "important");
+              badge.style.setProperty("border", "1px solid black", "important");
+            }
+          },
+        });
+
+        // Create download link
+        const image = canvas.toDataURL("image/png", 1.0);
+        const link = document.createElement("a");
+        link.href = image;
+        link.download = `Receipt-${confirmedBookingId}.png`;
+        link.click();
+      } catch (err) {
+        console.error("Download failed", err);
+      }
+    };
+
     return (
       <>
         <Header />
@@ -690,16 +841,8 @@ export default function BookBike() {
               className="relative bg-card rounded-[3rem] shadow-golden overflow-hidden print:shadow-none print:border-none print:rounded-none"
               id="receipt-content"
             >
-              {/* --- WEB ONLY HEADER (Sunset Gradient) --- */}
+              {/* WEB ONLY HEADER */}
               <div className="gradient-sunset p-10 text-center text-white relative overflow-hidden print:hidden">
-                <div
-                  className="absolute inset-0 opacity-10 pointer-events-none"
-                  style={{
-                    backgroundImage:
-                      "radial-gradient(circle at 2px 2px, white 1px, transparent 0)",
-                    backgroundSize: "24px 24px",
-                  }}
-                />
                 <div className="relative z-10">
                   <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-md border border-white/30">
                     <CheckCircle2 className="w-8 h-8 text-white drop-shadow-md" />
@@ -713,30 +856,30 @@ export default function BookBike() {
                 </div>
               </div>
 
-              {/* --- PRINT ONLY HEADER (Formal Black & White) --- */}
-              <div className="hidden print:flex justify-between items-start p-8 border-b-4 border-black mb-6 ">
+              {/* PRINT ONLY HEADER */}
+              <div className="hidden print:flex justify-between items-start p-8 border-b-4 border-black mb-6">
                 <div>
-                  <h1 className="text-3xl font-black tracking-tighter text-white">
+                  <h1 className="text-3xl font-black tracking-tighter text-black">
                     PIPIP RENTALS
                   </h1>
-                  <p className="text-xs text-white italic">
+                  <p className="text-xs text-black italic">
                     Premium Bike Rental Service
                   </p>
                 </div>
                 <div className="text-right">
-                  <h2 className="text-xl font-bold text-white uppercase">
+                  <h2 className="text-xl font-bold text-black uppercase">
                     Tax Invoice
                   </h2>
-                  <p className="text-xs text-white font-mono">
+                  <p className="text-xs text-black font-mono">
                     #{confirmedBookingId}
                   </p>
                 </div>
               </div>
 
               <CardContent className="p-8 md:p-12 space-y-8 bg-card print:bg-white">
-                {/* Reference Details */}
-                <div className="grid grid-cols-2 gap-6 border-b border-dashed border-border pb-6 print:border-black">
-                  <div>
+                {/* RESPONSIVE FIX: Changed grid to flex to prevent overlap */}
+                <div className="flex flex-col xs:flex-row justify-between gap-4 border-b border-dashed border-border pb-6 print:border-black">
+                  <div className="flex flex-col">
                     <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest print:text-black">
                       Order ID
                     </span>
@@ -744,7 +887,7 @@ export default function BookBike() {
                       #{confirmedBookingId}
                     </p>
                   </div>
-                  <div className="text-right">
+                  <div className="flex flex-col xs:items-end">
                     <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest print:text-black">
                       Issue Date
                     </span>
@@ -754,12 +897,11 @@ export default function BookBike() {
                   </div>
                 </div>
 
-                {/* Customer & Vehicle Details */}
+                {/* Summary Details - ALL preserved exactly */}
                 <div className="space-y-4">
                   <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 print:text-black">
                     Summary Details
                   </h4>
-
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground print:text-black">
                       Customer Name
@@ -768,7 +910,6 @@ export default function BookBike() {
                       {customerData.name}
                     </span>
                   </div>
-
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground print:text-black">
                       Contact Number
@@ -777,7 +918,6 @@ export default function BookBike() {
                       +91 {customerData.phone}
                     </span>
                   </div>
-
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-muted-foreground print:text-black">
                       Bike Model
@@ -786,7 +926,6 @@ export default function BookBike() {
                       {bike?.model}
                     </span>
                   </div>
-
                   <div className="flex justify-between items-start text-sm">
                     <span className="text-muted-foreground print:text-black">
                       Rental Period
@@ -839,10 +978,10 @@ export default function BookBike() {
                 </div>
 
                 {/* Web Only Buttons */}
-                <div className="flex flex-col sm:flex-row gap-4 pt-4 print:hidden">
+                <div className="receipt-buttons flex flex-col sm:flex-row gap-4 pt-4 print:hidden">
                   <Button
                     variant="outline"
-                    onClick={() => window.print()}
+                    onClick={handleDownload}
                     className="flex-1 h-14 rounded-2xl border-2 border-border font-bold hover:bg-muted"
                   >
                     <FileText className="w-5 h-5 mr-2" /> Download Bill
@@ -862,7 +1001,6 @@ export default function BookBike() {
       </>
     );
   }
-
   return (
     <>
       <Header />
