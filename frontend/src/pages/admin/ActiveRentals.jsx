@@ -134,6 +134,7 @@ const bookingsByBike = bikes?.reduce((acc, bike) => {
 
       {/* Bikes on Rent Grid */}
       <div className="grid gap-6">
+        {/* Replace the entire {filteredBikes.length === 0 ? ... } block with this: */}
         {filteredBikes.length === 0 ? (
           <Card className="text-center py-12">
             <CardContent>
@@ -152,43 +153,44 @@ const bookingsByBike = bikes?.reduce((acc, bike) => {
               transition={{ delay: index * 0.05 }}
             >
               <Card
-                className={`overflow-hidden cursor-pointer transition-all hover:shadow-lg ${
+                className={`overflow-hidden transition-all hover:shadow-lg ${
                   selectedBike === bikeId ? "ring-2 ring-primary" : ""
                 }`}
-                onClick={() =>
-                  setSelectedBike(selectedBike === bikeId ? null : bikeId)
-                }
               >
-                <CardHeader className="bg-muted/50 border-b border-border">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
+                <CardHeader
+                  className="bg-muted/50 border-b border-border p-3 sm:p-4 cursor-pointer"
+                  onClick={() =>
+                    setSelectedBike(selectedBike === bikeId ? null : bikeId)
+                  }
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
                       {data.bike.image_url ? (
                         <img
                           src={data.bike.image_url}
                           alt={data.bike.model}
-                          className="w-16 h-16 rounded-lg object-cover"
+                          className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg object-cover shrink-0"
                         />
                       ) : (
-                        <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
-                          <Bike className="w-8 h-8 text-muted-foreground" />
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                          <Bike className="w-6 h-6 text-muted-foreground" />
                         </div>
                       )}
-                      <div>
-                        <CardTitle className="text-xl">
+                      <div className="min-w-0">
+                        <CardTitle className="text-sm sm:text-xl truncate">
                           {data.bike.model}
                         </CardTitle>
-                        <p className="text-muted-foreground">
+                        <p className="text-[10px] sm:text-sm text-muted-foreground truncate font-mono">
                           {data.bike.number_plate} • {data.bike.cc}cc
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Badge className="bg-primary text-primary-foreground">
-                        {data.bookings.length} Booking
-                        {data.bookings.length > 1 ? "s" : ""}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge className="bg-primary text-primary-foreground text-[10px] sm:text-xs">
+                        {data.bookings.length} Book
                       </Badge>
                       <ChevronRight
-                        className={`w-5 h-5 text-muted-foreground transition-transform ${
+                        className={`w-5 h-5 text-muted-foreground transition-transform duration-300 ${
                           selectedBike === bikeId ? "rotate-90" : ""
                         }`}
                       />
@@ -196,154 +198,106 @@ const bookingsByBike = bikes?.reduce((acc, bike) => {
                   </div>
                 </CardHeader>
 
-                <CardContent className="p-0">
-                  <div className="divide-y divide-border">
-                    {data.bookings.map((booking, bookingIndex) => {
-                      const statusInfo = getBookingStatus(booking);
+                {/* LOGIC FIX: Wrapped in selectedBike check so it actually expands/collapses */}
+                {selectedBike === bikeId && (
+                  <CardContent className="p-0 border-t border-border">
+                    <div className="divide-y divide-border">
+                      {data.bookings.map((booking, bookingIndex) => {
+                        const statusInfo = getBookingStatus(booking);
 
-                      return (
-                        <motion.div
-                          key={booking._id}
-                          initial={
-                            selectedBike === bikeId
-                              ? { opacity: 0, height: 0 }
-                              : {}
-                          }
-                          animate={{ opacity: 1, height: "auto" }}
-                          className="p-4 hover:bg-muted/30 transition-colors"
-                        >
-                          <div className="flex items-start gap-4">
-                            <div className="flex flex-col items-center">
+                        return (
+                          <motion.div
+                            key={booking._id}
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            className="p-3 sm:p-4 hover:bg-muted/30 transition-colors"
+                          >
+                            <div className="flex items-start gap-3">
                               <div
-                                className={`w-4 h-4 rounded-full ${statusInfo.color}`}
+                                className={`w-3 h-3 mt-1 rounded-full shrink-0 ${statusInfo.color}`}
                               />
-                              {bookingIndex < data.bookings.length - 1 && (
-                                <div className="w-0.5 h-full bg-border mt-1" />
-                              )}
-                            </div>
 
-                            <div className="flex-1 grid md:grid-cols-4 gap-4">
-                              <div>
-                                <p className="text-sm text-muted-foreground mb-1">
-                                  Customer
-                                </p>
-                                <div className="flex items-center gap-2">
-                                  <User className="w-4 h-4 text-primary" />
-                                  <span className="font-medium">
-                                    {booking.customers?.name}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                                  <Phone className="w-3 h-3" />
+                              {/* Responsive Grid: 1 col on S8, 4 col on desktop */}
+                              <div className="flex-1 grid grid-cols-1 sm:grid-cols-4 gap-3 sm:gap-4">
+                                <div className="min-w-0">
+                                  <p className="text-[10px] text-muted-foreground uppercase">
+                                    Customer
+                                  </p>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <User className="w-3.5 h-3.5 text-primary shrink-0" />
+                                    <span className="text-sm font-medium truncate">
+                                      {booking.customers?.name}
+                                    </span>
+                                  </div>
                                   <a
                                     href={`tel:${booking.customers?.phone}`}
-                                    className="hover:text-primary"
+                                    className="flex items-center gap-2 mt-1 text-xs text-muted-foreground hover:text-primary"
                                   >
+                                    <Phone className="w-3 h-3 shrink-0" />
                                     {booking.customers?.phone}
                                   </a>
                                 </div>
-                              </div>
 
-                              <div>
-                                <p className="text-sm text-muted-foreground mb-1">
-                                  Booking Period
-                                </p>
-                                <div className="flex items-center gap-2">
-                                  <Calendar className="w-4 h-4 text-secondary" />
-                                  <span className="text-sm">
-                                    {format(
-                                      new Date(booking.start_datetime),
-                                      "MMM d, h:mm a",
-                                    )}
-                                  </span>
-                                </div>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Clock className="w-4 h-4 text-muted-foreground" />
-                                  <span className="text-sm">
-                                    to{" "}
-                                    {format(
-                                      new Date(booking.end_datetime),
-                                      "MMM d, h:mm a",
-                                    )}
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div>
-                                <p className="text-sm text-muted-foreground mb-1">
-                                  Status
-                                </p>
-                                <Badge
-                                  className={`${statusInfo.color} text-white mb-1`}
-                                >
-                                  {statusInfo.label}
-                                </Badge>
-                                {booking.status === "active" && (
-                                  <div className="flex items-center gap-1 text-sm mt-1">
-                                    <Timer className="w-3 h-3" />
-                                    <span
-                                      className={
-                                        statusInfo.status === "overdue"
-                                          ? "text-red-500 font-medium"
-                                          : statusInfo.status === "ending-soon"
-                                            ? "text-amber-500 font-medium"
-                                            : "text-muted-foreground"
-                                      }
-                                    >
-                                      {getTimeRemaining(booking.end_datetime)}
+                                <div>
+                                  <p className="text-[10px] text-muted-foreground uppercase">
+                                    Ends At
+                                  </p>
+                                  <div className="flex items-center gap-2 mt-0.5 text-xs">
+                                    <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                                    <span>
+                                      {format(
+                                        new Date(booking.end_datetime),
+                                        "MMM d, h:mm a",
+                                      )}
                                     </span>
                                   </div>
-                                )}
-                              </div>
+                                </div>
 
-                              <div className="text-right">
-                                <p className="text-sm text-muted-foreground mb-1">
-                                  Amount
-                                </p>
-                                <p className="text-xl font-bold text-primary">
-                                  ₹{booking.total_amount?.toLocaleString() || 0}
-                                </p>
+                                <div>
+                                  <p className="text-[10px] text-muted-foreground uppercase">
+                                    Status
+                                  </p>
+                                  <Badge
+                                    className={`${statusInfo.color} text-[10px] text-white mt-1 h-5`}
+                                  >
+                                    {statusInfo.label}
+                                  </Badge>
+                                </div>
+
+                                <div className="sm:text-right">
+                                  <p className="text-[10px] text-muted-foreground uppercase">
+                                    Total Amount
+                                  </p>
+                                  <p className="text-base sm:text-lg font-bold text-primary">
+                                    ₹{booking.total_amount?.toLocaleString()}
+                                  </p>
+                                </div>
                               </div>
                             </div>
-                          </div>
 
-                          {(statusInfo.status === "ending-soon" ||
-                            statusInfo.status === "overdue") && (
-                            <div
-                              className={`mt-3 ml-8 p-2 rounded-lg flex items-center gap-2 text-sm ${
-                                statusInfo.status === "overdue"
-                                  ? "bg-red-500/10 text-red-500"
-                                  : "bg-amber-500/10 text-amber-500"
-                              }`}
-                            >
-                              <AlertCircle className="w-4 h-4" />
-                              {statusInfo.status === "overdue"
-                                ? "This rental is overdue! Contact customer immediately."
-                                : "Rental ending soon. Prepare for bike return."}
-                            </div>
-                          )}
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="p-4 bg-muted/30 border-t border-border">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Bike will be free after:
-                      </span>
-                      <span className="font-medium text-foreground">
-                        {format(
-                          new Date(
-                            data.bookings[data.bookings.length - 1]
-                              .end_datetime,
-                          ),
-                          "MMM d, yyyy h:mm a",
-                        )}
-                      </span>
+                            {(statusInfo.status === "ending-soon" ||
+                              statusInfo.status === "overdue") && (
+                              <div
+                                className={`mt-3 p-2 rounded-lg flex items-center gap-2 text-[11px] sm:text-xs ${
+                                  statusInfo.status === "overdue"
+                                    ? "bg-red-500/10 text-red-500"
+                                    : "bg-amber-500/10 text-amber-500"
+                                }`}
+                              >
+                                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                <span>
+                                  {statusInfo.status === "overdue"
+                                    ? "Contact customer immediately!"
+                                    : "Ending soon."}
+                                </span>
+                              </div>
+                            )}
+                          </motion.div>
+                        );
+                      })}
                     </div>
-                  </div>
-                </CardContent>
+                  </CardContent>
+                )}
               </Card>
             </motion.div>
           ))

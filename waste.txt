@@ -1,0 +1,140 @@
+  <AnimatePresence initial={false}>
+                {filteredBikes.map((bike) => (
+                  <motion.div
+                    key={bike._id}
+                    
+                    onMouseEnter={() => setHoveredBike(bike._id)}
+                    onMouseLeave={() => setHoveredBike(null)}
+                    className={`group relative bg-card border border-border rounded-2xl overflow-hidden cursor-pointer transition-shadow ${
+                      viewMode === "list" ? "flex" : ""
+                    } hover:shadow-golden hover:border-primary/50`}
+                    whileHover={{ y: -8 }}
+                    onClick={() =>
+                      bike.status === "available" && handleBookNow(bike._id)
+                    }
+                  >
+                    {/* Image */}
+                    <div
+                      className={`relative ${
+                        viewMode === "list" ? "w-48 h-36" : "h-48"
+                      } bg-muted overflow-hidden`}
+                    >
+                      {bike.image_url ? (
+                        <motion.img
+                          src={bike.image_url}
+                          alt={bike.model}
+                          className="w-full h-full object-cover"
+                          whileHover={{ scale: 1.1 }}
+                          transition={{ duration: 0.4 }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted/50">
+                          <Bike className="w-16 h-16 text-muted-foreground" />
+                        </div>
+                      )}
+
+                      {/* Status Badge */}
+                      <div className="absolute top-3 right-3">
+                        <Badge
+                          className={`${
+                            bike.status === "available"
+                              ? "bg-green-500/90 text-white"
+                              : bike.status === "booked"
+                              ? "bg-red-500/90 text-white"
+                              : "bg-amber-500/90 text-white"
+                          }`}
+                        >
+                          {bike.status === "available"
+                            ? "Available"
+                            : bike.status === "booked"
+                            ? "On Rent"
+                            : "Maintenance"}
+                        </Badge>
+                      </div>
+
+                      {/* Area Badge */}
+                      {getAreaName(bike.area_id) && (
+                        <div className="absolute bottom-3 left-3">
+                          <Badge
+                            variant="secondary"
+                            className="bg-card/90 backdrop-blur-sm text-foreground"
+                          >
+                            <MapPin className="w-3 h-3 mr-1" />
+                            {getAreaName(bike.area_id)}
+                          </Badge>
+                        </div>
+                      )}
+
+                     
+                    </div>
+
+                    {/* Info */}
+                    <div
+                      className={`p-5 ${
+                        viewMode === "list"
+                          ? "flex-1 flex flex-col justify-between"
+                          : ""
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-start justify-between mb-2">
+                          <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
+                            {bike.model}
+                          </h3>
+                          <span className="text-xs bg-muted px-2 py-1 rounded-full text-muted-foreground">
+                            {bike.cc}cc
+                          </span>
+                        </div>
+
+                        <p className="text-sm text-muted-foreground mb-4 flex items-center gap-2">
+                          <Shield className="w-3 h-3 text-green-500" />
+                          {bike.number_plate}
+                        </p>
+                      </div>
+
+                      {/* Pricing */}
+                      <div className="flex items-center justify-between mb-4 p-3 bg-muted/50 rounded-lg">
+                        <div className="flex items-center gap-1 text-primary">
+                          <IndianRupee className="w-4 h-4" />
+                          <span className="font-bold text-lg">
+                            {bike.price_per_hour}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            /hr
+                          </span>
+                        </div>
+                        <div className="w-px h-6 bg-border" />
+                        <div className="flex items-center gap-1 text-secondary">
+                          <IndianRupee className="w-4 h-4" />
+                          <span className="font-bold text-lg">
+                            {bike.price_per_day}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            /day
+                          </span>
+                        </div>
+                      </div>
+
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleBookNow(bike._id);
+                        }}
+                        className="w-full gradient-sunset text-primary-foreground font-medium"
+                        disabled={bike.status !== "available"}
+                      >
+                        {bike.status === "available" ? (
+                          <>
+                            Book Now
+                            <ArrowRight className="w-4 h-4 ml-2" />
+                          </>
+                        ) : bike.status === "booked" ? (
+                          "Currently On Rent"
+                        ) : (
+                          "Under Maintenance"
+                        )}
+                      </Button>
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>

@@ -138,6 +138,8 @@ export default function Bikes() {
 
   
 
+  
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -159,7 +161,7 @@ export default function Bikes() {
                 {editingBike ? "Edit Bike" : "Add New Bike"}
               </DialogTitle>
             </DialogHeader>
-            <ScrollArea className="flex-1 overflow-auto pr-4">
+            <ScrollArea className="flex-1 overflow-auto pr-4 scrollbar-hide">
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Image Upload */}
                 <div className="space-y-2">

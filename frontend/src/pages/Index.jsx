@@ -8,6 +8,7 @@ import Pricing from "../components/Pricing";
 import { useEffect } from "react";
 import FeaturedBikes from "../components/FeaturedBikes";
 import FAQ from "../components/FAQ";
+import ScrollToTop from "../components/ScrollToTop";
 
 
 
@@ -35,6 +36,7 @@ const Index = () => {
   }, [location]);
   return (
     <div className="min-h-screen bg-background">
+      <ScrollToTop/>
       <Header />
       <main>
         <Hero />

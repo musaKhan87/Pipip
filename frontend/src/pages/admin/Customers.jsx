@@ -286,18 +286,21 @@ export default function Customers() {
               transition={{ delay: index * 0.05 }}
             >
               <Card
-                className="hover:shadow-md transition-shadow cursor-pointer"
+                className="hover:shadow-md transition-shadow cursor-pointer h-full flex flex-col justify-between"
                 onClick={() => setViewingCustomer(customer)}
               >
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
+                <CardContent className="p-4 flex flex-col h-full">
+                  {/* Top Section: Name and Phone */}
+                  <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-primary/10 rounded-full">
+                      <div className="p-2 bg-primary/10 rounded-full shrink-0">
                         <User className="w-5 h-5 text-primary" />
                       </div>
-                      <div>
-                        <h3 className="font-semibold">{customer.name}</h3>
-                        <div className="flex items-center gap-1 text-sm text-gray-600">
+                      <div className="overflow-hidden">
+                        <h3 className="font-semibold truncate leading-tight">
+                          {customer.name}
+                        </h3>
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
                           <Phone className="w-3 h-3" />
                           {customer.phone}
                         </div>
@@ -305,36 +308,63 @@ export default function Customers() {
                     </div>
                   </div>
 
-                  {customer.email && (
-                    <div className="mt-2 flex items-center gap-1 text-sm text-gray-600">
-                      <Mail className="w-3 h-3" />
-                      {customer.email}
+                  {/* Middle Section: Info Rows (Standardized Height) */}
+                  <div className="space-y-2 flex-grow">
+                    {/* Email Row */}
+                    <div className="flex items-center gap-2 text-sm text-gray-300 h-5">
+                      {customer.email ? (
+                        <>
+                          <Mail className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">{customer.email}</span>
+                        </>
+                      ) : (
+                        <span className="text-gray-300 italic text-xs">
+                          No email provided
+                        </span>
+                      )}
                     </div>
-                  )}
 
-                  {customer.id_proof_type && (
-                    <div className="mt-2 flex items-center gap-1 text-sm text-gray-600">
-                      <CreditCard className="w-3 h-3" />
-                      {customer.id_proof_type}: {customer.id_proof_number}
+                    {/* ID Proof Row */}
+                    <div className="flex items-center gap-2 text-sm text-gray-300 h-5">
+                      {customer.id_proof_type ? (
+                        <>
+                          <CreditCard className="w-3.5 h-3.5 shrink-0" />
+                          <span className="truncate">
+                            {customer.id_proof_type}: {customer.id_proof_number}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-gray-300 italic text-xs">
+                          No ID linked
+                        </span>
+                      )}
                     </div>
-                  )}
+                  </div>
 
-                  <div className="mt-4 flex gap-2">
+                  {/* Bottom Section: Badges */}
+                  <div className="mt-4 pt-3 border-t border-border flex flex-wrap gap-2">
                     <Badge
                       variant="outline"
-                      className="flex items-center gap-1"
+                      className="flex items-center gap-1 text-[10px] uppercase tracking-wider"
                     >
                       <History className="w-3 h-3" />
-                      View Details
+                      Details
                     </Badge>
-                    {(customer.aadhaar_image_url ||
-                      customer.license_image_url) && (
+                    {customer.aadhaar_image_url ||
+                    customer.license_image_url ? (
                       <Badge
                         variant="secondary"
-                        className="flex items-center gap-1"
+                        className="bg-green-100 text-green-700 hover:bg-green-100 flex items-center gap-1 text-[10px] uppercase tracking-wider border-none"
                       >
                         <FileImage className="w-3 h-3" />
-                        Documents
+                        Docs
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="secondary"
+                        className="bg-gray-100 text-gray-400 flex items-center gap-1 text-[10px] uppercase tracking-wider border-none"
+                      >
+                        No Docs
                       </Badge>
                     )}
                   </div>

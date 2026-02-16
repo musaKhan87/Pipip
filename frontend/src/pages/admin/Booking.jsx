@@ -480,7 +480,7 @@ export default function Bookings() {
               {/* Added bottom margin to title */}
               <DialogTitle>Create Manual Booking</DialogTitle>
             </DialogHeader>
-            <ScrollArea className="flex-1 overflow-auto pr-6 ">
+            <ScrollArea className="flex-1 overflow-auto pr-6 scrollbar-hide">
               {/* Increased padding for scroll area */}
               <form onSubmit={handleCreateBooking} className="space-y-6">
                 {/* Increased spacing between rows from 4 to 6 */}
@@ -851,7 +851,7 @@ export default function Bookings() {
         </DialogContent>
       </Dialog>
 
-      <div className="flex flex-col sm:flex-row gap-4">
+      {/* <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -872,7 +872,50 @@ export default function Bookings() {
           <TabsTrigger value="completed">Completed</TabsTrigger>
           <TabsTrigger value="cancelled">Cancelled</TabsTrigger>
         </TabsList>
-      </Tabs>
+      </Tabs> */}
+
+      {/* Optimized Search and Filter Section */}
+      <div className="flex flex-col gap-4">
+        <div className="relative w-full max-w-md">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by customer, bike, plate..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 h-11"
+          />
+        </div>
+
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v)}
+          className="w-full"
+        >
+          {/* Horizontal Scroll wrapper for Mobile */}
+          <div className="relative w-full overflow-x-auto pb-2 -mb-2 no-scrollbar">
+            <TabsList className="inline-flex w-max sm:w-full sm:flex bg-muted p-1">
+              <TabsTrigger value="all" className="px-4 py-2 flex-1">
+                All
+              </TabsTrigger>
+              <TabsTrigger value="pending" className="px-4 py-2 flex-1">
+                Pending
+              </TabsTrigger>
+              <TabsTrigger value="confirmed" className="px-4 py-2 flex-1">
+                Confirmed
+              </TabsTrigger>
+              <TabsTrigger value="active" className="px-4 py-2 flex-1">
+                Active
+              </TabsTrigger>
+              <TabsTrigger value="completed" className="px-4 py-2 flex-1">
+                Completed
+              </TabsTrigger>
+              <TabsTrigger value="cancelled" className="px-4 py-2 flex-1">
+                Cancelled
+              </TabsTrigger>
+            </TabsList>
+          </div>
+        </Tabs>
+      </div>
 
       {isLoading ? (
         <div className="space-y-4">

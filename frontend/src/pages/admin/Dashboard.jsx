@@ -63,18 +63,23 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-display text-gradient-sunset">
+          <h1 className="text-3xl font-display text-gradient-sunset tracking-tight">
             Dashboard
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mt-1">
             Welcome back! Here's your rental overview.
           </p>
         </div>
-        <p className="text-sm text-muted-foreground">
-          {format(new Date(), "EEEE, MMMM d, yyyy")}
-        </p>
+
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/50 rounded-full border border-border w-fit">
+          <Calendar className="w-4 h-4 text-primary" />
+          <span className="text-sm font-medium text-foreground">
+            {format(new Date(), "EEEE, MMMM d, yyyy")}
+          </span>
+        </div>
       </div>
 
       {/* Expiring Bookings Alert - Live Notification Logic */}

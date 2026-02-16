@@ -16,7 +16,6 @@ import { Label } from "../../components/ui/Label";
 import { Switch } from "../../components/ui/Switch";
 
 import {
-  
   useCreateArea,
   useUpdateArea,
   useDeleteArea,
@@ -86,13 +85,22 @@ export default function Areas() {
           <p className="text-muted-foreground">Manage pickup/drop locations</p>
         </div>
 
+        {/* Update your Add Area Button Trigger */}
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
           <DialogTrigger asChild>
-            <Button className="gradient-sunset text-primary-foreground shadow-golden">
+            <Button
+              className="gradient-sunset text-primary-foreground shadow-golden"
+              onClick={() => {
+                // EXPLICITLY reset state before opening
+                setEditingArea(null);
+                setFormData({ name: "", city: "Mumbai", is_active: true });
+              }}
+            >
               <Plus className="w-4 h-4 mr-2" />
               Add Area
             </Button>
           </DialogTrigger>
+          {/* ... rest of the Dialog code */}
 
           <DialogContent className="bg-card border-border">
             <DialogHeader>

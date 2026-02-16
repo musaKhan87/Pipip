@@ -160,7 +160,7 @@ export default function Settings() {
         </CardContent>
       </Card>
 
-      {isAdmin && (
+      {/* {isAdmin && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
@@ -291,6 +291,77 @@ export default function Settings() {
                     No staff members yet
                   </p>
                 )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )} */}
+
+      {isAdmin && (
+        <Card>
+          {/* Header: Stacks on mobile, side-by-side on desktop */}
+          <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                Team Management
+              </CardTitle>
+              <CardDescription>
+                Add and manage admin/staff accounts
+              </CardDescription>
+            </div>
+            <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-primary w-full sm:w-auto">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Staff
+                </Button>
+              </DialogTrigger>
+              {/* ... Keep DialogContent same ... */}
+            </Dialog>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <p className="text-gray-500">Loading...</p>
+            ) : (
+              <div className="space-y-3">
+                {staffList.map((staff) => (
+                  <div
+                    key={staff._id}
+                    className="flex items-center justify-between p-3 sm:p-4 bg-black-50 rounded-lg gap-2"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className={`shrink-0 p-2 rounded-full ${staff.role === "admin" ? "bg-purple-100" : "bg-blue-100"}`}
+                      >
+                        <Shield
+                          className={`w-4 h-4 ${staff.role === "admin" ? "text-purple-600" : "text-blue-600"}`}
+                        />
+                      </div>
+                      {/* min-w-0 and truncate prevents text from pushing the button off-screen */}
+                      <div className="min-w-0">
+                        <p className="font-medium truncate text-sm sm:text-base">
+                          {staff.fullName}
+                        </p>
+                        <p className="text-xs text-gray-500 capitalize">
+                          {staff.role}
+                        </p>
+                      </div>
+                    </div>
+
+                    {staff._id !== user?._id && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveStaff(staff._id)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 shrink-0"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                {/* ... Keep empty state same ... */}
               </div>
             )}
           </CardContent>

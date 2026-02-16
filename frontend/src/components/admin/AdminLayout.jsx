@@ -1,11 +1,21 @@
-import { Outlet, Navigate } from "react-router-dom";
+import { Outlet, Navigate, useLocation } from "react-router-dom";
 import AdminSidebar from "./AdminSidebar";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "../../utils/AuthProvider";
+import { useEffect, useRef } from "react";
 
 export default function AdminLayout() {
   const { user, isAdminOrStaff, loading } = useAuth();
+  const location = useLocation();
+  const scrollRef = useRef(null); // Create a reference to the scrollable area
 
+  // Scroll to top whenever the path changes
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo(0, 0);
+    }
+  }, [location.pathname]);
+  
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -58,7 +68,11 @@ export default function AdminLayout() {
       <AdminSidebar />
 
       {/* Added scrollbar-hide here */}
-      <main className="flex-1 p-4 lg:p-8 overflow-y-auto h-full bg-background scrollbar-hide">
+
+      <main
+        className="flex-1 p-4 lg:p-8 overflow-y-auto h-full bg-background scrollbar-hide"
+        ref={scrollRef}
+      >
         <div className="max-w-7xl mx-auto">
           <Outlet />
         </div>

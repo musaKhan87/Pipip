@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { format, differenceInHours } from "date-fns";
 import {
@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   XCircle,
   Banknote,
+  Bike,
 } from "lucide-react";
 
 import { Input } from "../components/ui/Input";
@@ -80,190 +81,17 @@ export default function BookBike() {
   const createCustomer = useCreateCustomer();
   const createBooking = useCreateBooking();
   const { checkAvailability, checking } = useBikeAvailability();
+  // Inside BookBike function
+  const [confirmedBookingId, setConfirmedBookingId] = useState("");
 
-  // const handleOnlinePayment = async () => {
-  //   try {
-  //     setIsSubmitting(true);
+  const location = useLocation();
+  const scrollRef = useRef(null); // Create a reference to the scrollable area
 
-  //     // 1️⃣ Create / get customer
-  //     const formData = new FormData();
-  //     Object.entries(customerData).forEach(([key, value]) => {
-  //       if (value !== null) formData.append(key, value);
-  //     });
-  //     const customer = await createCustomer.mutateAsync(formData);
+  // Add this alongside your other useEffects
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [step, bookingComplete]);
 
-  //     // 2️⃣ Create payment order (backend)
-  //     const res = await fetch("http://localhost:5000/api/payment/create-order", {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify({
-  //         amount: calculatePrice(),
-  //         customerName: customerData.name,
-  //         customerEmail: customerData.email || "test@email.com",
-  //         customerPhone: customerData.phone,
-  //       }),
-  //     });
-
-  //     if (!res.ok) throw new Error("Payment order failed");
-  //     const data = await res.json();
-
-  //     // 3️⃣ Init Cashfree
-  //     const cashfree = new window.Cashfree({ mode: "sandbox" });
-
-  //     // 4️⃣ Open Checkout with Callbacks
-  //     await cashfree
-  //       .checkout({
-  //         paymentSessionId: data.paymentSessionId,
-  //         redirectTarget: "_modal",
-  //       })
-  //       .then(async (result) => {
-  //         if (result.error) {
-  //           // This handles immediate SDK errors
-  //           toast.error(result.error.message);
-  //           setIsSubmitting(false);
-  //         }
-
-  //         if (result.redirect) {
-  //           // This is for some payment methods that require redirects
-  //           console.log("Payment will redirect");
-  //         }
-  //       });
-
-  //     // 5️⃣ Polling or Manual Status Check
-  //     // Since we are in a modal, we check the status after the modal closes
-  //     // Or you can use a settimeout/polling to check your backend for "PAID" status
-  //     checkStatusAndConfirm(data.orderId, customer._id);
-  //   } catch (err) {
-  //     console.error(err);
-  //     toast.error("An error occurred during payment.");
-  //     setIsSubmitting(false);
-  //   }
-  //   };
-
-  //   const checkStatusAndConfirm = async (orderId, customerId) => {
-  //     try {
-  //       // Call your backend to verify order status with Cashfree API
-  //       const verifyRes = await fetch(
-  //         `http://localhost:5000/api/payment/verify/${orderId}`,
-  //       );
-  //       const verifyData = await verifyRes.json();
-
-  //       if (verifyData.status === "PAID" || verifyData.status === "SUCCESS") {
-  //         // ONLY NOW create the booking
-  //         await createBooking.mutateAsync({
-  //           bike_id: bike._id,
-  //           customer_id: customerId,
-  //           start_datetime: new Date(startDate).toISOString(),
-  //           end_datetime: new Date(endDate).toISOString(),
-  //           total_amount: calculatePrice(),
-  //           payment_status: "paid",
-  //           status: "confirmed",
-  //           payment_order_id: orderId,
-  //         });
-
-  //         setBookingComplete(true);
-  //         toast.success("Payment successful & booking confirmed!");
-  //       } else {
-  //         toast.error("Payment failed: " + (verifyData.message || "Incomplete"));
-  //       }
-  //     } catch (error) {
-  //       toast.error("Could not verify payment status.");
-  //     } finally {
-  //       setIsSubmitting(false);
-  //     }
-  //   };
-
-  // const handleCashBooking = async () => {
-  //   try {
-  //     setIsSubmitting(true);
-
-  //     // 1. Create the customer first
-  //     const formData = new FormData();
-  //     Object.entries(customerData).forEach(([key, value]) => {
-  //       if (value !== null) formData.append(key, value);
-  //     });
-  //     const customer = await createCustomer.mutateAsync(formData);
-
-  //     // 2. Create booking directly with 'pending' payment status
-  //     await createBooking.mutateAsync({
-  //       bike_id: bike._id,
-  //       customer_id: customer._id,
-  //       start_datetime: new Date(startDate).toISOString(),
-  //       end_datetime: new Date(endDate).toISOString(),
-  //       total_amount: calculatePrice(),
-  //       payment_status: "pending",
-  //       status: "pending",
-  //       booking_source: "website",
-  //     });
-
-  //     setBookingComplete(true);
-  //     toast.success("Booking requested! Please pay at the shop.");
-  //   } catch (err) {
-  //     console.error(err);
-  //     toast.error("Failed to process cash booking.");
-  //   } finally {
-  //     setIsSubmitting(false);
-  //   }
-  // };
-
-  // const handleOnlinePayment = async () => {
-  //   try {
-  //     setIsSubmitting(true);
-  //     setPaymentFailed(false);
-
-  //     // 1️⃣ Create customer
-  //     const formData = new FormData();
-  //     Object.entries(customerData).forEach(([key, value]) => {
-  //       if (value !== null) formData.append(key, value);
-  //     });
-  //     const customer = await createCustomer.mutateAsync(formData);
-
-  //     // 2️⃣ Create Cashfree order
-  //     const res = await fetch(
-  //       "http://localhost:5000/api/payment/create-order",
-  //       {
-  //         method: "POST",
-  //         headers: { "Content-Type": "application/json" },
-  //         body: JSON.stringify({
-  //           amount: calculatePrice(),
-  //           customerName: customerData.name,
-  //           customerEmail: customerData.email || "test@email.com",
-  //           customerPhone: customerData.phone,
-  //         }),
-  //       },
-  //     );
-
-  //     if (!res.ok) throw new Error("Payment order failed");
-  //     const data = await res.json();
-
-  //     // 3️⃣ Init Cashfree
-  //     const cashfree = new window.Cashfree({ mode: "sandbox" });
-
-  //     // 4️⃣ Open Checkout
-  //     const result = await cashfree.checkout({
-  //       paymentSessionId: data.paymentSessionId,
-  //       redirectTarget: "_modal",
-  //     });
-
-  //     // 5️⃣ Handle Result
-  //     if (result.error) {
-  //       // ❌ Payment failed / cancelled
-  //       console.error(result.error);
-  //       toast.error("Payment failed or cancelled");
-  //       setPaymentFailed(true);
-  //       setIsSubmitting(false);
-  //       return;
-  //     }
-
-  //     // ✅ Payment attempt completed → now verify
-  //     await checkStatusAndConfirm(data.orderId, customer._id);
-  //   } catch (err) {
-  //     console.error(err);
-  //     toast.error("An error occurred during payment.");
-  //     setPaymentFailed(true);
-  //     setIsSubmitting(false);
-  //   }
-  // };
   // --- 1. ONLINE PAYMENT FLOW ---
   const handleOnlinePayment = async () => {
     try {
@@ -279,7 +107,7 @@ export default function BookBike() {
 
       // 2. Create the Order on your Backend
       const res = await fetch(
-          // "http://localhost:5000/api/payment/create-order",
+        // "http://localhost:5000/api/payment/create-order",
         `${API_URL}/create-order`,
         {
           method: "POST",
@@ -340,6 +168,7 @@ export default function BookBike() {
       const verifyData = await verifyRes.json();
 
       if (verifyData.status === "PAID") {
+        setConfirmedBookingId(orderId);
         setBookingComplete(true);
         toast.success("Booking Confirmed!");
       } else {
@@ -364,7 +193,7 @@ export default function BookBike() {
       const customer = await createCustomer.mutateAsync(formData);
 
       // Submit Booking with 'cash' method
-      await createBooking.mutateAsync({
+      const newBooking = await createBooking.mutateAsync({
         bike_id: bike._id,
         customer_id: customer._id,
         start_datetime: new Date(startDate).toISOString(),
@@ -375,6 +204,9 @@ export default function BookBike() {
         status: "pending",
         booking_source: "website",
       });
+
+      // Set the real MongoDB/Database ID (e.g., _id or booking_id)
+      setConfirmedBookingId(newBooking._id || newBooking.booking_id);
 
       setBookingComplete(true);
       toast.success("Booking requested! Pay at pickup.");
@@ -560,22 +392,6 @@ export default function BookBike() {
     }
   };
 
-  // In your handleOnlinePayment catch or verify check:
-  // if (failed) setPaymentFailed(true);
-
-  // if (paymentFailed) {
-  //   return (
-  //     <div className="text-center p-8 bg-card border border-red-500/30 rounded-2xl">
-  //       <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-  //       <h2 className="text-xl font-bold">Payment Failed</h2>
-  //       <p className="text-muted-foreground mb-4">
-  //         Don't worry, no money was deducted.
-  //       </p>
-  //       <Button onClick={() => setPaymentFailed(false)}>Try Again</Button>
-  //     </div>
-  //   );
-  // }
-
   if (paymentFailed) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-4">
@@ -657,57 +473,388 @@ export default function BookBike() {
     );
   }
 
+  //   if (bookingComplete) {
+  //     return (
+  //       <>
+  //         <Header />
+  //         <main className="min-h-screen bg-background pt-52 pb-12 ">
+  //           <div className="container mx-auto px-4 max-w-lg">
+  //             <motion.div
+  //               initial={{ opacity: 0, scale: 0.9 }}
+  //               animate={{ opacity: 1, scale: 1 }}
+  //               className="bg-card border border-border rounded-2xl p-8 text-center"
+  //             >
+  //               <motion.div
+  //                 initial={{ scale: 0 }}
+  //                 animate={{ scale: 1 }}
+  //                 transition={{ delay: 0.2, type: "spring" }}
+  //                 className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6"
+  //               >
+  //                 <Check className="w-10 h-10 text-green-500" />
+  //               </motion.div>
+  //               <h1 className="text-2xl font-bold text-foreground mb-2">
+  //                 Booking Submitted!
+  //               </h1>
+  //               <p className="text-muted-foreground mb-6">
+  //                 Your booking request for{" "}
+  //                 <span className="text-primary">{bike.model}</span> has been
+  //                 received. Our team will contact you shortly to confirm.
+  //               </p>
+  //               <div className="space-y-2 text-sm text-muted-foreground mb-6">
+  //                 <p>
+  //                   📞 We'll call you at:{" "}
+  //                   <span className="text-foreground">{customerData.phone}</span>
+  //                 </p>
+  //                 <p>
+  //                   📅 Pickup:{" "}
+  //                   <span className="text-foreground">
+  //                     {format(new Date(startDate), "PPp")}
+  //                   </span>
+  //                 </p>
+  //                 <p>
+  //                   📅 Return:{" "}
+  //                   <span className="text-foreground">
+  //                     {format(new Date(endDate), "PPp")}
+  //                   </span>
+  //                 </p>
+  //               </div>
+  //               <Button
+  //                 onClick={() => navigate("/")}
+  //                 className="gradient-sunset text-primary-foreground"
+  //               >
+  //                 Back to Home
+  //               </Button>
+  //             </motion.div>
+  //           </div>
+  //         </main>
+  //         <Footer />
+  //       </>
+  //     );
+  //   }
+
+  // if (bookingComplete) {
+  //   return (
+  //     <>
+  //       <Header />
+  //       <main className="min-h-screen pt-32 pb-20 bg-background">
+  //         <div className="container mx-auto px-4 max-w-xl">
+  //           <motion.div
+  //             initial={{ opacity: 0, scale: 0.9 }}
+  //             animate={{ opacity: 1, scale: 1 }}
+  //             className="bg-card border border-border rounded-[2.5rem] shadow-golden overflow-hidden print:shadow-none"
+  //             id="receipt-content"
+  //           >
+  //             {/* Header with your Brand Gradient */}
+  //             <div className="gradient-sunset p-10 text-center text-primary-foreground relative overflow-hidden">
+  //               {/* Decorative Circle for "Classic" look */}
+  //               <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-2xl" />
+
+  //               <CheckCircle2 className="w-16 h-16 mx-auto mb-4 drop-shadow-lg" />
+  //               <h2 className="text-3xl font-display font-bold">
+  //                 Booking Confirmed!
+  //               </h2>
+  //               <p className="opacity-90 font-medium">
+  //                 Get ready for your ride
+  //               </p>
+  //             </div>
+
+  //             <CardContent className="p-8 md:p-10 space-y-8 bg-card">
+  //               {/* Reference Number Section */}
+  //               <div className="flex justify-between items-center border-b border-border pb-6">
+  //                 <div>
+  //                   <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold">
+  //                     Booking ID
+  //                   </p>
+  //                   <p className="text-lg font-mono font-bold text-primary">
+  //                     #PIPIP-
+  //                     {Math.random().toString(36).substr(2, 6).toUpperCase()}
+  //                   </p>
+  //                 </div>
+  //                 <div className="text-right">
+  //                   <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground font-bold">
+  //                     Status
+  //                   </p>
+  //                   <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-500/10 text-green-500 border border-green-500/20 uppercase">
+  //                     {paymentMethod === "online" ? "● Paid" : "● Confirmed"}
+  //                   </span>
+  //                 </div>
+  //               </div>
+
+  //               {/* Ride Summary */}
+  //               <div className="space-y-5">
+  //                 <div className="flex justify-between items-center">
+  //                   <div className="flex items-center gap-3">
+  //                     <div className="p-2 bg-primary/10 rounded-lg">
+  //                       <Bike className="w-5 h-5 text-primary" />
+  //                     </div>
+  //                     <span className="text-muted-foreground font-medium">
+  //                       Vehicle
+  //                     </span>
+  //                   </div>
+  //                   <span className="font-bold text-foreground">
+  //                     {bike?.model}
+  //                   </span>
+  //                 </div>
+
+  //                 <div className="flex justify-between items-center">
+  //                   <div className="flex items-center gap-3">
+  //                     <div className="p-2 bg-primary/10 rounded-lg">
+  //                       <MapPin className="w-5 h-5 text-primary" />
+  //                     </div>
+  //                     <span className="text-muted-foreground font-medium">
+  //                       Location
+  //                     </span>
+  //                   </div>
+  //                   <span className="font-bold text-foreground">
+  //                     {customerData.area}
+  //                   </span>
+  //                 </div>
+
+  //                 <div className="flex justify-between items-center">
+  //                   <div className="flex items-center gap-3">
+  //                     <div className="p-2 bg-primary/10 rounded-lg">
+  //                       <Calendar className="w-5 h-5 text-primary" />
+  //                     </div>
+  //                     <span className="text-muted-foreground font-medium">
+  //                       Pickup
+  //                     </span>
+  //                   </div>
+  //                   <span className="font-bold text-foreground">
+  //                     {format(new Date(startDate), "MMM dd, hh:mm a")}
+  //                   </span>
+  //                 </div>
+  //               </div>
+
+  //               {/* Amount Divider (Modern Ticket look) */}
+  //               <div className="relative py-4">
+  //                 <div className="absolute left-0 right-0 top-1/2 border-t border-dashed border-border" />
+  //                 <div className="relative flex justify-center">
+  //                   <span className="bg-card px-4 text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
+  //                     Payment Summary
+  //                   </span>
+  //                 </div>
+  //               </div>
+
+  //               <div className="flex justify-between items-end">
+  //                 <div>
+  //                   <p className="text-sm text-muted-foreground font-medium italic">
+  //                     Total Amount
+  //                   </p>
+  //                   <p className="text-4xl font-display font-black text-foreground">
+  //                     ₹{calculatePrice()}
+  //                   </p>
+  //                 </div>
+  //                 <div className="text-right text-[10px] text-muted-foreground font-medium leading-relaxed max-w-[150px]">
+  //                   Payable via{" "}
+  //                   {paymentMethod === "online"
+  //                     ? "Online Gateway"
+  //                     : "Cash on Pickup"}
+  //                 </div>
+  //               </div>
+
+  //               {/* Action Buttons */}
+  //               <div className="flex flex-col sm:flex-row gap-4 pt-6 print:hidden">
+  //                 <Button
+  //                   variant="outline"
+  //                   onClick={() => window.print()}
+  //                   className="flex-1 h-12 border-primary/20 hover:bg-primary/5 text-primary font-bold rounded-2xl"
+  //                 >
+  //                   <FileText className="w-4 h-4 mr-2" />
+  //                   Save PDF
+  //                 </Button>
+  //                 <Button
+  //                   onClick={() => navigate("/")}
+  //                   className="flex-1 h-12 gradient-sunset text-primary-foreground shadow-golden font-bold rounded-2xl"
+  //                 >
+  //                   Back to Home
+  //                 </Button>
+  //               </div>
+  //             </CardContent>
+  //           </motion.div>
+  //         </div>
+  //       </main>
+  //       <Footer />
+  //     </>
+  //   );
+  // }
+
   if (bookingComplete) {
     return (
       <>
         <Header />
-        <main className="min-h-screen bg-background pt-52 pb-12 ">
+        <main className="min-h-screen pt-32 pb-20 bg-background/50">
           <div className="container mx-auto px-4 max-w-lg">
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-card border border-border rounded-2xl p-8 text-center"
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="relative bg-card rounded-[3rem] shadow-golden overflow-hidden print:shadow-none print:border-none print:rounded-none"
+              id="receipt-content"
             >
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.2, type: "spring" }}
-                className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6"
-              >
-                <Check className="w-10 h-10 text-green-500" />
-              </motion.div>
-              <h1 className="text-2xl font-bold text-foreground mb-2">
-                Booking Submitted!
-              </h1>
-              <p className="text-muted-foreground mb-6">
-                Your booking request for{" "}
-                <span className="text-primary">{bike.model}</span> has been
-                received. Our team will contact you shortly to confirm.
-              </p>
-              <div className="space-y-2 text-sm text-muted-foreground mb-6">
-                <p>
-                  📞 We'll call you at:{" "}
-                  <span className="text-foreground">{customerData.phone}</span>
-                </p>
-                <p>
-                  📅 Pickup:{" "}
-                  <span className="text-foreground">
-                    {format(new Date(startDate), "PPp")}
-                  </span>
-                </p>
-                <p>
-                  📅 Return:{" "}
-                  <span className="text-foreground">
-                    {format(new Date(endDate), "PPp")}
-                  </span>
-                </p>
+              {/* --- WEB ONLY HEADER (Sunset Gradient) --- */}
+              <div className="gradient-sunset p-10 text-center text-white relative overflow-hidden print:hidden">
+                <div
+                  className="absolute inset-0 opacity-10 pointer-events-none"
+                  style={{
+                    backgroundImage:
+                      "radial-gradient(circle at 2px 2px, white 1px, transparent 0)",
+                    backgroundSize: "24px 24px",
+                  }}
+                />
+                <div className="relative z-10">
+                  <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-md border border-white/30">
+                    <CheckCircle2 className="w-8 h-8 text-white drop-shadow-md" />
+                  </div>
+                  <h2 className="text-2xl font-display font-black tracking-tight uppercase">
+                    Booking Confirmed
+                  </h2>
+                  <p className="text-white/80 text-[10px] font-medium mt-1 tracking-[0.3em] uppercase">
+                    Official Receipt
+                  </p>
+                </div>
               </div>
-              <Button
-                onClick={() => navigate("/")}
-                className="gradient-sunset text-primary-foreground"
-              >
-                Back to Home
-              </Button>
+
+              {/* --- PRINT ONLY HEADER (Formal Black & White) --- */}
+              <div className="hidden print:flex justify-between items-start p-8 border-b-4 border-black mb-6 ">
+                <div>
+                  <h1 className="text-3xl font-black tracking-tighter text-white">
+                    PIPIP RENTALS
+                  </h1>
+                  <p className="text-xs text-white italic">
+                    Premium Bike Rental Service
+                  </p>
+                </div>
+                <div className="text-right">
+                  <h2 className="text-xl font-bold text-white uppercase">
+                    Tax Invoice
+                  </h2>
+                  <p className="text-xs text-white font-mono">
+                    #{confirmedBookingId}
+                  </p>
+                </div>
+              </div>
+
+              <CardContent className="p-8 md:p-12 space-y-8 bg-card print:bg-white">
+                {/* Reference Details */}
+                <div className="grid grid-cols-2 gap-6 border-b border-dashed border-border pb-6 print:border-black">
+                  <div>
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest print:text-black">
+                      Order ID
+                    </span>
+                    <p className="text-sm font-mono font-bold text-primary print:text-black">
+                      #{confirmedBookingId}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest print:text-black">
+                      Issue Date
+                    </span>
+                    <p className="text-sm font-bold text-foreground print:text-black">
+                      {format(new Date(), "dd MMM yyyy")}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Customer & Vehicle Details */}
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 print:text-black">
+                    Summary Details
+                  </h4>
+
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground print:text-black">
+                      Customer Name
+                    </span>
+                    <span className="font-bold print:text-black">
+                      {customerData.name}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground print:text-black">
+                      Contact Number
+                    </span>
+                    <span className="font-bold print:text-black">
+                      +91 {customerData.phone}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-muted-foreground print:text-black">
+                      Bike Model
+                    </span>
+                    <span className="font-bold print:text-black">
+                      {bike?.model}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-start text-sm">
+                    <span className="text-muted-foreground print:text-black">
+                      Rental Period
+                    </span>
+                    <div className="text-right">
+                      <p className="font-bold print:text-black">
+                        {format(new Date(startDate), "MMM dd, hh:mm a")}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground print:text-black">
+                        to {format(new Date(endDate), "MMM dd, hh:mm a")}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Amount Box */}
+                <div className="bg-primary/5 p-8 rounded-[2rem] border border-primary/10 print:bg-white print:border-2 print:border-black print:rounded-none">
+                  <div className="flex justify-between items-end">
+                    <div>
+                      <span className="text-[10px] font-black uppercase text-primary print:text-black tracking-widest">
+                        Total Amount Paid
+                      </span>
+                      <p className="text-5xl font-display font-black text-foreground print:text-black">
+                        ₹{calculatePrice()}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span
+                        className={`text-[10px] font-black px-3 py-1 rounded-full uppercase border ${paymentMethod === "online" ? "bg-green-500 text-white border-none" : "bg-orange-500 text-white border-none"} print:bg-white print:text-black print:border-black print:border`}
+                      >
+                        {paymentMethod === "online"
+                          ? "Verified PAID"
+                          : "Pay on Pickup"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Fine Print */}
+                <div className="bg-muted p-4 rounded-xl text-[10px] text-muted-foreground leading-relaxed border border-border print:border-black print:text-black print:bg-white">
+                  <p className="font-bold mb-1 text-foreground print:text-black uppercase tracking-tighter">
+                    Instructions:
+                  </p>
+                  <p>• Carry original Aadhar & DL. No digital copies.</p>
+                  <p>• Helmets provided based on availability.</p>
+                  <p>
+                    • Vehicle should be returned at{" "}
+                    {customerData.area || "the pickup point"}.
+                  </p>
+                </div>
+
+                {/* Web Only Buttons */}
+                <div className="flex flex-col sm:flex-row gap-4 pt-4 print:hidden">
+                  <Button
+                    variant="outline"
+                    onClick={() => window.print()}
+                    className="flex-1 h-14 rounded-2xl border-2 border-border font-bold hover:bg-muted"
+                  >
+                    <FileText className="w-5 h-5 mr-2" /> Download Bill
+                  </Button>
+                  <Button
+                    onClick={() => navigate("/")}
+                    className="flex-1 h-14 rounded-2xl gradient-sunset text-white shadow-golden font-bold"
+                  >
+                    Done
+                  </Button>
+                </div>
+              </CardContent>
             </motion.div>
           </div>
         </main>
@@ -719,7 +866,7 @@ export default function BookBike() {
   return (
     <>
       <Header />
-      <main className="min-h-screen bg-background pt-24 pb-12">
+      <main className="min-h-screen bg-background pt-28 pb-12">
         <div className="container mx-auto px-4">
           <Button
             variant="ghost"

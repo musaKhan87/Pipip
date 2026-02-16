@@ -13,6 +13,7 @@ import {
   Grid,
   List,
   Filter,
+  XCircle,
 } from "lucide-react";
 
 import { Button } from "../components/ui/Button";
@@ -30,6 +31,192 @@ import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { useBikes } from "../hooks/useBikes";
 import { useActiveAreas } from "../hooks/useAreas";
+import { useBikeAvailability } from "../hooks/useBikeAvailability";
+
+const BikeCard = ({
+  bike,
+  viewMode,
+  urlStart,
+  urlEnd,
+  handleBookNow,
+  getAreaName,
+  setHoveredBike,
+}) => {
+  const { checkAvailability, checking } = useBikeAvailability();
+  const [availabilityData, setAvailabilityData] = useState({
+    isAvailable: true,
+  });
+
+  // Checks the backend for current rent status/conflicts whenever dates change
+  useEffect(() => {
+    const verifyStatus = async () => {
+      // If we have dates, check the backend
+      if (urlStart && urlEnd && bike.status === "available") {
+        const res = await checkAvailability(
+          bike._id,
+          new Date(urlStart),
+          new Date(urlEnd),
+        );
+        setAvailabilityData(res);
+      }
+      // If dates are cleared, RESET the card to default state
+      else {
+        setAvailabilityData({ isAvailable: true });
+      }
+    };
+
+    verifyStatus();
+  }, [bike._id, urlStart, urlEnd, checkAvailability, bike.status]);
+
+  // Logic to see if the bike is currently occupied in the searched slot
+  const isBookedInSlot =
+    !availabilityData.isAvailable && availabilityData.bookedTo;
+
+  // Helper to format the date/time from the DB
+  const formatTime = (dateStr) => {
+    return new Date(dateStr).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      day: "numeric",
+      month: "short",
+    });
+  };
+
+  return (
+    <motion.div
+      key={bike._id}
+      onMouseEnter={() => setHoveredBike(bike._id)}
+      onMouseLeave={() => setHoveredBike(null)}
+      className={`group relative bg-card border border-border rounded-2xl overflow-hidden cursor-pointer transition-shadow ${
+        viewMode === "list" ? "flex" : ""
+      } hover:shadow-golden hover:border-primary/50`}
+      whileHover={{ y: -8 }}
+      onClick={() =>
+        !isBookedInSlot &&
+        bike.status === "available" &&
+        handleBookNow(bike._id)
+      }
+    >
+      {/* Image Section */}
+      <div
+        className={`relative ${viewMode === "list" ? "w-48 h-36" : "h-48"} bg-muted overflow-hidden`}
+      >
+        {bike.image_url ? (
+          <motion.img
+            src={bike.image_url}
+            alt={bike.model}
+            className="w-full h-full object-cover"
+            whileHover={{ scale: 1.1 }}
+            transition={{ duration: 0.4 }}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted/50">
+            <Bike className="w-16 h-16 text-muted-foreground" />
+          </div>
+        )}
+
+        {/* STATUS BADGES - Showing Rent Timing here */}
+        <div className="absolute top-3 right-3 flex flex-col gap-2 items-end">
+          <Badge
+            className={`${
+              isBookedInSlot
+                ? "bg-orange-500 text-white"
+                : bike.status === "available"
+                  ? "bg-green-500/90 text-white"
+                  : bike.status === "booked"
+                    ? "bg-red-500/90 text-white"
+                    : "bg-amber-500/90 text-white"
+            }`}
+          >
+            {isBookedInSlot
+              ? "Slot Taken"
+              : bike.status === "available"
+                ? "Available"
+                : bike.status === "booked"
+                  ? "On Rent"
+                  : "Maintenance"}
+          </Badge>
+
+          {/* THE EXACT RENT TIME DISPLAY */}
+          {isBookedInSlot && (
+            <Badge
+              variant="outline"
+              className="bg-card/95 backdrop-blur-md text-orange-600 border-orange-500 text-[10px] py-1 shadow-lg"
+            >
+              Booked until: {formatTime(availabilityData.bookedTo)}
+            </Badge>
+          )}
+        </div>
+
+        {getAreaName(bike.area_id) && (
+          <div className="absolute bottom-3 left-3">
+            <Badge
+              variant="secondary"
+              className="bg-card/90 backdrop-blur-sm text-foreground"
+            >
+              <MapPin className="w-3 h-3 mr-1" />
+              {getAreaName(bike.area_id)}
+            </Badge>
+          </div>
+        )}
+      </div>
+
+      {/* Info Section - Unchanged Design */}
+      <div
+        className={`p-5 ${viewMode === "list" ? "flex-1 flex flex-col justify-between" : ""}`}
+      >
+        <div>
+          <div className="flex items-start justify-between mb-2">
+            <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
+              {bike.model}
+            </h3>
+            <span className="text-xs bg-muted px-2 py-1 rounded-full text-muted-foreground">
+              {bike.cc}cc
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4 flex items-center gap-2">
+            <Shield className="w-3 h-3 text-green-500" />
+            {bike.number_plate}
+          </p>
+        </div>
+
+        {/* Pricing Layout - Exactly as requested */}
+        <div className="flex items-center justify-between mb-4 p-3 bg-muted/50 rounded-lg">
+          <div className="flex items-center gap-1 text-primary">
+            <IndianRupee className="w-4 h-4" />
+            <span className="font-bold text-lg">{bike.price_per_hour}</span>
+            <span className="text-xs text-muted-foreground">/hr</span>
+          </div>
+          <div className="w-px h-6 bg-border" />
+          <div className="flex items-center gap-1 text-secondary">
+            <IndianRupee className="w-4 h-4" />
+            <span className="font-bold text-lg">{bike.price_per_day}</span>
+            <span className="text-xs text-muted-foreground">/day</span>
+          </div>
+        </div>
+
+        <Button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleBookNow(bike._id);
+          }}
+          className="w-full gradient-sunset text-primary-foreground font-medium"
+          disabled={bike.status !== "available" || isBookedInSlot || checking}
+        >
+          {checking ? (
+            "Checking..."
+          ) : isBookedInSlot ? (
+            "Currently Rented Out"
+          ) : (
+            <>
+              Book Now <ArrowRight className="w-4 h-4 ml-2" />
+            </>
+          )}
+        </Button>
+      </div>
+    </motion.div>
+  );
+};
 
 const Catalog = () => {
   const navigate = useNavigate();
@@ -86,6 +273,13 @@ const Catalog = () => {
     );
   }, [bikes, selectedArea, ccFilter, statusFilter]); // Only re-run when filters change
 
+  const clearTimeFilter = () => {
+    const params = new URLSearchParams(searchParams);
+    params.delete("start");
+    params.delete("end");
+    // This updates the URL; React detects the change and re-renders
+    navigate(`/catalog?${params.toString()}`);
+  };
   const handleBookNow = (bikeId) => {
     const params = new URLSearchParams();
     if (urlStart) params.set("start", urlStart);
@@ -245,6 +439,28 @@ const Catalog = () => {
                   </span>
                 </div>
               </div>
+
+              <div className="flex items-end gap-4">
+                {/* Add this block near your other filter dropdowns */}
+                {/* This button only pops up when a time filter is active */}
+                {(urlStart || urlEnd) && (
+                  <motion.div
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="flex items-center gap-2"
+                  >
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearTimeFilter}
+                      className="border-dashed border-primary text-primary hover:bg-primary/5 gap-2 h-10 px-4 rounded-xl"
+                    >
+                      <XCircle className="w-4 h-4" />
+                      Clear Time Filter
+                    </Button>
+                  </motion.div>
+                )}
+              </div>
             </div>
           </motion.div>
 
@@ -310,142 +526,16 @@ const Catalog = () => {
             >
               <AnimatePresence initial={false}>
                 {filteredBikes.map((bike) => (
-                  <motion.div
+                  <BikeCard
                     key={bike._id}
-                    
-                    onMouseEnter={() => setHoveredBike(bike._id)}
-                    onMouseLeave={() => setHoveredBike(null)}
-                    className={`group relative bg-card border border-border rounded-2xl overflow-hidden cursor-pointer transition-shadow ${
-                      viewMode === "list" ? "flex" : ""
-                    } hover:shadow-golden hover:border-primary/50`}
-                    whileHover={{ y: -8 }}
-                    onClick={() =>
-                      bike.status === "available" && handleBookNow(bike._id)
-                    }
-                  >
-                    {/* Image */}
-                    <div
-                      className={`relative ${
-                        viewMode === "list" ? "w-48 h-36" : "h-48"
-                      } bg-muted overflow-hidden`}
-                    >
-                      {bike.image_url ? (
-                        <motion.img
-                          src={bike.image_url}
-                          alt={bike.model}
-                          className="w-full h-full object-cover"
-                          whileHover={{ scale: 1.1 }}
-                          transition={{ duration: 0.4 }}
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted/50">
-                          <Bike className="w-16 h-16 text-muted-foreground" />
-                        </div>
-                      )}
-
-                      {/* Status Badge */}
-                      <div className="absolute top-3 right-3">
-                        <Badge
-                          className={`${
-                            bike.status === "available"
-                              ? "bg-green-500/90 text-white"
-                              : bike.status === "booked"
-                              ? "bg-red-500/90 text-white"
-                              : "bg-amber-500/90 text-white"
-                          }`}
-                        >
-                          {bike.status === "available"
-                            ? "Available"
-                            : bike.status === "booked"
-                            ? "On Rent"
-                            : "Maintenance"}
-                        </Badge>
-                      </div>
-
-                      {/* Area Badge */}
-                      {getAreaName(bike.area_id) && (
-                        <div className="absolute bottom-3 left-3">
-                          <Badge
-                            variant="secondary"
-                            className="bg-card/90 backdrop-blur-sm text-foreground"
-                          >
-                            <MapPin className="w-3 h-3 mr-1" />
-                            {getAreaName(bike.area_id)}
-                          </Badge>
-                        </div>
-                      )}
-
-                     
-                    </div>
-
-                    {/* Info */}
-                    <div
-                      className={`p-5 ${
-                        viewMode === "list"
-                          ? "flex-1 flex flex-col justify-between"
-                          : ""
-                      }`}
-                    >
-                      <div>
-                        <div className="flex items-start justify-between mb-2">
-                          <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
-                            {bike.model}
-                          </h3>
-                          <span className="text-xs bg-muted px-2 py-1 rounded-full text-muted-foreground">
-                            {bike.cc}cc
-                          </span>
-                        </div>
-
-                        <p className="text-sm text-muted-foreground mb-4 flex items-center gap-2">
-                          <Shield className="w-3 h-3 text-green-500" />
-                          {bike.number_plate}
-                        </p>
-                      </div>
-
-                      {/* Pricing */}
-                      <div className="flex items-center justify-between mb-4 p-3 bg-muted/50 rounded-lg">
-                        <div className="flex items-center gap-1 text-primary">
-                          <IndianRupee className="w-4 h-4" />
-                          <span className="font-bold text-lg">
-                            {bike.price_per_hour}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            /hr
-                          </span>
-                        </div>
-                        <div className="w-px h-6 bg-border" />
-                        <div className="flex items-center gap-1 text-secondary">
-                          <IndianRupee className="w-4 h-4" />
-                          <span className="font-bold text-lg">
-                            {bike.price_per_day}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            /day
-                          </span>
-                        </div>
-                      </div>
-
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleBookNow(bike._id);
-                        }}
-                        className="w-full gradient-sunset text-primary-foreground font-medium"
-                        disabled={bike.status !== "available"}
-                      >
-                        {bike.status === "available" ? (
-                          <>
-                            Book Now
-                            <ArrowRight className="w-4 h-4 ml-2" />
-                          </>
-                        ) : bike.status === "booked" ? (
-                          "Currently On Rent"
-                        ) : (
-                          "Under Maintenance"
-                        )}
-                      </Button>
-                    </div>
-                  </motion.div>
+                    bike={bike}
+                    viewMode={viewMode}
+                    urlStart={urlStart}
+                    urlEnd={urlEnd}
+                    handleBookNow={handleBookNow}
+                    getAreaName={getAreaName}
+                    setHoveredBike={setHoveredBike}
+                  />
                 ))}
               </AnimatePresence>
             </motion.div>
