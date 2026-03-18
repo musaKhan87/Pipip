@@ -16,7 +16,7 @@ import {
   XCircle,
 } from "lucide-react";
 
-import { Button } from "../components/ui/Button";
+import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/Badge";
 import {
   Select,
@@ -24,7 +24,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../components/ui/Select";
+} from "../components/ui/select";
 import { Skeleton } from "../components/ui/Skeleton";
 
 import Header from "../components/Header";

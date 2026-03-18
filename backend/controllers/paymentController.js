@@ -101,6 +101,14 @@ const verifyWebhook = async (req, res) => {
     // 1. Mark booking as PAID
     // 2. Lock bike
     // 3. Send confirmation SMS / Email
+
+    await Booking.findOneAndUpdate(
+      { payment_order_id: order_id },
+      {
+        payment_status: "paid",
+        booking_source: "online", // <--- ADDED THIS LINE
+      },
+    );
     console.log("Payment successful for:", order_id);
   }
 
@@ -134,6 +142,7 @@ const verifyPayment = async (req, res) => {
           payment_method: "online",
           payment_order_id: orderId,
           status: "confirmed",
+          booking_source: "online", // <--- ADDED THIS LINE
         });
       }
 

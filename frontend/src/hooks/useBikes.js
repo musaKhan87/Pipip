@@ -2,9 +2,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import axios from "axios";
 
-// const API_URL = "http://localhost:5000/api/bikes";
+const API_URL = "http://localhost:5000/api/bikes";
 
-const API_URL = " https://pipip-backend.onrender.com/api/bikes";
+// const API_URL = " https://pipip-backend.onrender.com/api/bikes";
 
 
 /* ================= GET ALL BIKES ================= */
@@ -13,6 +13,7 @@ export function useBikes() {
     queryKey: ["bikes"],
     queryFn: async () => {
       const res = await fetch(API_URL);
+      
       if (!res.ok) throw new Error("Failed to fetch bikes");
       return res.json();
     },
@@ -22,9 +23,14 @@ export function useBikes() {
 /* ================= CREATE BIKE ================= */
 export function useCreateBike() {
   const queryClient = useQueryClient();
+  
 
   return useMutation({
     mutationFn: async (formData) => {
+     console.log("Submitting Bike Data:");
+     for (let [key, value] of formData.entries()) {
+       console.log(`${key}:`, value);
+     }
       const res = await fetch(API_URL, {
         method: "POST",
         body: formData, // form-data (image upload)

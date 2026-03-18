@@ -13,7 +13,7 @@ const router = express.Router();
 
 // CREATE booking
 router.post("/", createBooking);
-router.post("/admin",upload.none(), adminCreateBooking);
+router.post("/admin",upload.any(), adminCreateBooking);
 
 
 // ADMIN ONLY

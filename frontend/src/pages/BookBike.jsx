@@ -54,7 +54,8 @@ const initialCustomerData = {
   license_image: null, // 👈 FILE
 };
 
-const API_URL = " https://pipip-backend.onrender.com/api/payment";
+// const API_URL = " https://pipip-backend.onrender.com/api/payment";
+const API_URL = "http://localhost:5000/api/payment";
 
 export default function BookBike() {
   const { bikeId } = useParams();
@@ -206,7 +207,7 @@ export default function BookBike() {
         payment_method: "cash", // FIX: Sets method to cash in database
         payment_status: "pending",
         status: "pending",
-        booking_source: "website",
+        booking_source: "online",
       });
 
       // Set the real MongoDB/Database ID (e.g., _id or booking_id)
@@ -383,7 +384,7 @@ export default function BookBike() {
         end_datetime: new Date(endDate).toISOString(),
         total_amount: calculatePrice(),
         notes: notes || undefined,
-        booking_source: "website",
+        booking_source: "online",
         status: "pending",
       });
 
@@ -805,7 +806,6 @@ export default function BookBike() {
             if (buttonRow1) {
               buttonRow1.style.display = "none";
             }
-
 
             // 2. FIX THE "PAY ON PICKUP" BADGE COLOR
             // This finds the badge and forces it to be white background with black text

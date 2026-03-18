@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Plus, Search, MapPin, Pencil, Trash2, Loader2 } from "lucide-react";
 
-import { Button } from "../../components/ui/Button";
-import { Input } from "../../components/ui/Input";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
 import { Card, CardContent } from "../../components/ui/card";
 import { Badge } from "../../components/ui/Badge";
 import {
@@ -11,8 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "../../components/ui/Dialog";
-import { Label } from "../../components/ui/Label";
+} from "../../components/ui/dialog";
+import { Label } from "../../components/ui/label";
 import { Switch } from "../../components/ui/Switch";
 
 import {

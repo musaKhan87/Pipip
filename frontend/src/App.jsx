@@ -18,7 +18,6 @@ import AdminLogin from "./pages/AdminLogin";
 import Settings from "./pages/admin/Settings";
 import Contact from "./components/Contact";
 import BookBike from "./pages/BookBike";
-
 function App() {
   const queryClient = new QueryClient();
   return (

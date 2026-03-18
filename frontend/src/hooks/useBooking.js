@@ -2,9 +2,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { toast } from "sonner";
 
-// const API_URL = "http://localhost:5000/api/bookings";
+const API_URL = "http://localhost:5000/api/bookings";
 
-const API_URL = " https://pipip-backend.onrender.com/api/bookings";
+// const API_URL = " https://pipip-backend.onrender.com/api/bookings";
 
 
 /* =========================
@@ -64,6 +64,24 @@ export function useAdminCreateBooking() {
 
   return useMutation({
     mutationFn: async (bookingData) => {
+      // --- BETTER LOGGING START ---
+      console.log("🚀 Preparing to send booking request...");
+
+      if (bookingData instanceof FormData) {
+        const logObject = {};
+        for (let [key, value] of bookingData.entries()) {
+          // If the value is a File, show the name/size, otherwise show the value
+          logObject[key] =
+            value instanceof File
+              ? `File: ${value.name} (${value.size} bytes)`
+              : value;
+        }
+        console.table(logObject); // console.table is much easier to read for FormData
+      } else {
+        console.log("📦 Sending JSON Object:", bookingData);
+      }
+      // --- BETTER LOGGING END ---
+
       const { data } = await axios.post(`${API_URL}/admin`, bookingData);
       return data;
     },
@@ -72,11 +90,11 @@ export function useAdminCreateBooking() {
       toast.success("Booking created successfully");
     },
     onError: (error) => {
+      console.error("❌ Backend Error Details:", error.response?.data);
       toast.error(error.response?.data?.message || "Failed to create booking");
     },
   });
 }
-
 /* =========================
    UPDATE BOOKING STATUS (ADMIN)
 ========================= */
