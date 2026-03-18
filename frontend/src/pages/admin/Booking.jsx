@@ -777,9 +777,8 @@ const handleCreateBooking = async (e) => {
             />
           </div>
         </div>
-
-        {/* MOVE THIS OUTSIDE THE GRID */}
-        {availabilityMessage && (
+        
+        {!isEdit && availabilityMessage && (
           <div
             className={`p-4 rounded-xl flex items-center gap-3 text-sm mt-2 border ${
               isAvailable
@@ -796,7 +795,6 @@ const handleCreateBooking = async (e) => {
           </div>
         )}
       </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Rental Amount (₹) *</Label>
