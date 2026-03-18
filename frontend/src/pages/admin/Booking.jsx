@@ -1,10 +1,10 @@
 import { useState, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "../../components/ui/card";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { Label } from "../../components/ui/label";
-import { Textarea } from "../../components/ui/textarea";
+import { Button } from "../../components/ui/Button";
+import { Input } from "../../components/ui/Input";
+import { Label } from "../../components/ui/Label";
+import { Textarea } from "../../components/ui/Textarea";
 import { ScrollArea } from "../../components/ui/ScrollArea";
 import {
   Select,
@@ -12,7 +12,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../../components/ui/select";
+} from "../../components/ui/Select";
 import {
   Dialog,
   DialogContent,
@@ -20,8 +20,8 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
-} from "../../components/ui/dialog";
-import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
+} from "../../components/ui/Dialog";
+import { Tabs, TabsList, TabsTrigger } from "../../components/ui/Tabs";
 import {
   useBookings,
   useUpdateBookingStatus,
