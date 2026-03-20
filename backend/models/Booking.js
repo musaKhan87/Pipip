@@ -241,6 +241,10 @@ const bookingSchema = new mongoose.Schema(
       default: "pending",
     },
 
+    payment_screenshot: {
+      type: String, // URL of uploaded image
+    },
+    
     notes: String,
 
     updated_by_admin: {

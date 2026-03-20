@@ -21,7 +21,8 @@ router.post("/admin",upload.any(), adminCreateBooking);
 router.get("/", getAllBookings);
 router.get("/:id", getBookingById);
 
-router.put("/:id", updateBooking);
+// router.put("/:id", updateBooking);
+router.put("/:id", upload.single("payment_screenshot"), updateBooking);
 router.patch("/:id/status", updateBookingStatus);
 
 router.delete("/:id", deleteBooking);

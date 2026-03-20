@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-
 import {
   Dialog,
   DialogContent,
@@ -9,7 +8,6 @@ import {
   DialogTrigger,
 } from "../../components/ui/Dialog";
 import { ScrollArea } from "../../components/ui/ScrollArea";
-
 import { useAreas } from "../../hooks/useAreas";
 import {
   Plus,
@@ -21,6 +19,7 @@ import {
   Filter,
   Eye,
   Gauge,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/Button";
@@ -72,6 +71,7 @@ const initialFormData = {
   last_battery_changed: "",
   last_tyre_change: "",
   gps_installed_date: "",
+  extra_images: [],
 };
 
 export default function Bikes() {
@@ -88,9 +88,74 @@ export default function Bikes() {
   const createBike = useCreateBike();
   const updateBike = useUpdateBike();
   const deleteBike = useDeleteBike();
-
-  // Add this to your state declarations
   const [selectedFile, setSelectedFile] = useState(null);
+
+  // State for multiple extra files
+  const [extraFiles, setExtraFiles] = useState([]);
+  // State for previews (blob urls)
+  const [extraPreviews, setExtraPreviews] = useState([]);
+
+  // File selection handler (One by One)
+  const handleExtraFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (extraFiles.length >= 5) {
+      toast.error("Maximum 5 extra photos allowed");
+      return;
+    }
+
+    // Add to binary files state
+    setExtraFiles((prev) => [...prev, file]);
+
+    // Add to previews state
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setExtraPreviews((prev) => [...prev, reader.result]);
+    };
+    reader.readAsDataURL(file);
+
+    // Clear input value to allow selecting same file again if needed
+    e.target.value = "";
+  };
+
+  // Remove file handler
+ // Remove file handler
+  const removeExtraFile = (index) => {
+    const itemToRemove = extraPreviews[index];
+
+    // Case 1: If it's a new file (a local blob/base64 preview)
+    if (typeof itemToRemove === "string" && (itemToRemove.startsWith("data:") || itemToRemove.startsWith("blob:"))) {
+      // Find the relative index in the extraFiles (binary) array
+      // We count how many "new" files appear before this one in the previews
+      const binaryIndex = extraPreviews
+        .slice(0, index)
+        .filter(src => src.startsWith("data:") || src.startsWith("blob:")).length;
+
+      setExtraFiles((prev) => prev.filter((_, i) => i !== binaryIndex));
+    }
+
+    // Case 2: Always remove from previews (works for both existing URLs and new previews)
+    setExtraPreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+  // Add this to your state declarations
+
+  const downloadImage = async (imageUrl, fileName) => {
+    try {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName || "bike-document.jpg";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      toast.error("Download failed");
+    }
+  };
 
   const filteredBikes = bikes?.filter((bike) => {
     const searchMatch =
@@ -110,44 +175,111 @@ export default function Bikes() {
     );
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // const handleSubmit = async (e) => {
+  //   e.preventDefault();
 
-    const data = new FormData();
+  //   const data = new FormData();
 
-    // 1. Append all text/number fields
-    Object.keys(formData).forEach((key) => {
-      // Skip image_url because it's just a local preview string here
-      if (key !== "image_url") {
-        data.append(key, formData[key]);
-      }
-    });
+  //   // Basic fields
+  //   Object.keys(formData).forEach((key) => {
+  //     if (key !== "image_url" && key !== "extra_images") {
+  //       data.append(key, formData[key]);
+  //     }
+  //   });
 
-    // 2. Append the actual File object
-    if (selectedFile) {
-      data.append("image_url", selectedFile); // Ensure "image" matches your backend field name
-    }
+  //   // Main Image
+  //   if (selectedFile) {
+  //     data.append("image_url", selectedFile);
+  //   }
 
-    try {
-      if (editingBike) {
-        // Corrected to use .id and pass formData
-        await updateBike.mutateAsync({
-          id: editingBike._id || editingBike.id,
-          formData: data,
-        });
-      } else {
-        await createBike.mutateAsync(data);
-      }
-      toast.success(editingBike ? "Bike updated" : "Bike added");
-      handleOpenChange(false);
-    } catch (error) {
-      toast.error("Failed to save");
-    }
-  };
+  //   // Extra Images - 'extra_images' key wahi honi chahiye jo backend route mein hai
+  //   extraFiles.forEach((file) => {
+  //     data.append("extra_images", file);
+  //   });
 
+  //   try {
+  //     if (editingBike) {
+  //       // Corrected to use .id and pass formData
+  //       await updateBike.mutateAsync({
+  //         id: editingBike._id || editingBike.id,
+  //         formData: data,
+  //       });
+  //     } else {
+  //       await createBike.mutateAsync(data);
+  //     }
+  //     toast.success(editingBike ? "Bike updated" : "Bike added");
+  //     handleOpenChange(false);
+  //   } catch (error) {
+  //     toast.error("Failed to save");
+  //   }
+  // };
+
+ const handleSubmit = async (e) => {
+   e.preventDefault();
+
+   const data = new FormData();
+
+   // 1. Text fields append (Excluding images)
+   Object.keys(formData).forEach((key) => {
+     if (
+       key !== "image_url" &&
+       key !== "extra_images" &&
+       formData[key] !== undefined
+     ) {
+       data.append(key, formData[key]);
+     }
+   });
+
+   // 2. Main Profile Image
+   if (selectedFile) {
+     data.append("image_url", selectedFile);
+   }
+
+   // --- NEW CHANGE START ---
+   // 3. Send the list of EXISTING images that were NOT deleted
+   // We filter 'extraPreviews' to find strings that are already URLs (hosted on your server/cloudinary)
+   const remainingImages = extraPreviews.filter(
+     (src) => typeof src === "string" && src.startsWith("http"),
+   );
+
+   // Send this as a stringified array so the backend can parse it
+   data.append("remaining_extra_images", JSON.stringify(remainingImages));
+   // --- NEW CHANGE END ---
+
+   // 4. Append NEWLY selected files
+   extraFiles.forEach((file) => {
+     data.append("extra_images", file);
+   });
+
+   try {
+     if (editingBike) {
+       await updateBike.mutateAsync({
+         id: editingBike._id || editingBike.id,
+         formData: data,
+       });
+     } else {
+       await createBike.mutateAsync(data);
+     }
+
+     toast.success(editingBike ? "Bike updated" : "Bike added");
+
+     setExtraFiles([]);
+     setExtraPreviews([]);
+     setSelectedFile(null);
+     handleOpenChange(false);
+   } catch (error) {
+     console.error("Upload Error:", error);
+     toast.error(error.response?.data?.message || "Failed to save");
+   }
+ };
   const handleEdit = (bike) => {
     setEditingBike(bike);
     setSelectedFile(null); // <--- ADD THIS LINE
+
+    const toInputDate = (dateStr) => {
+      if (!dateStr) return "";
+      return new Date(dateStr).toISOString().split("T")[0];
+    };
     setFormData({
       model: bike.model,
       number_plate: bike.number_plate,
@@ -161,17 +293,26 @@ export default function Bikes() {
       bike_name: bike.bike_name || "",
       bike_colour: bike.bike_colour || "",
       bike_owner: bike.bike_owner || "",
-      insurance_end_date: bike.insurance_end_date || "",
-      puc_end_date: bike.puc_end_date || "",
-      bike_end_date: bike.bike_end_date || "",
-      last_service_date: bike.last_service_date || "",
+      
       bike_expenses: bike.bike_expenses || 0,
       total_km_run: bike.total_km_run || 0,
-      last_battery_changed: bike.last_battery_changed || "",
-      last_tyre_change: bike.last_tyre_change || "",
-      gps_installed_date: bike.gps_installed_date || "",
+
+
+      insurance_end_date: toInputDate(bike.insurance_end_date),
+      puc_end_date: toInputDate(bike.puc_end_date),
+      bike_end_date: toInputDate(bike.bike_end_date),
+      last_service_date: toInputDate(bike.last_service_date),
+      last_battery_changed: toInputDate(bike.last_battery_changed),
+      last_tyre_change: toInputDate(bike.last_tyre_change),
+      gps_installed_date: toInputDate(bike.gps_installed_date),
     });
-    setIsOpen(true);
+   if (bike.extra_images) {
+     setExtraPreviews(bike.extra_images);
+   } else {
+     setExtraPreviews([]);
+   }
+
+   setIsOpen(true);
   };
 
   const handleDelete = async (id) => {
@@ -185,6 +326,8 @@ export default function Bikes() {
     if (!open) {
       setEditingBike(null);
       setSelectedFile(null);
+      setExtraFiles([]); // Added
+      setExtraPreviews([]);
       setFormData(initialFormData);
     }
   };
@@ -631,6 +774,42 @@ export default function Bikes() {
                   </div>
                 </div>
 
+                <div className="space-y-3">
+                  <Label>Upload Extra Photos (Max 5)</Label>
+
+                  <div className="flex flex-wrap gap-2">
+                    {/* Pehle se selected files dikhayein */}
+                    {extraPreviews.map((src, index) => (
+                      <div key={index} className="relative w-20 h-20">
+                        <img
+                          src={src}
+                          className="w-full h-full object-cover rounded-md border"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeExtraFile(index)}
+                          className="absolute -top-2 -right-2 bg-destructive text-white rounded-full p-1"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+
+                    {/* Naya add karne ka button */}
+                    {extraFiles.length < 5 && (
+                      <label className="w-20 h-20 flex flex-col items-center justify-center border-2 border-dashed rounded-md cursor-pointer hover:bg-accent">
+                        <Plus className="w-6 h-6" />
+                        <input
+                          type="file"
+                          className="hidden"
+                          onChange={handleExtraFileChange}
+                          accept="image/*"
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+
                 {/* Description */}
                 <div className="space-y-2">
                   <Label htmlFor="description">Description</Label>
@@ -888,6 +1067,49 @@ export default function Bikes() {
                     />
                   </div>
                 </div>
+
+                {/* Inside viewingBike Dialog ScrollArea */}
+                {/* View Dialog ke andar */}
+                {viewingBike?.extra_images?.length > 0 && (
+                  <div className="mt-6">
+                    <h3 className="text-sm font-semibold text-muted-foreground uppercase mb-3">
+                      Documents & Extra Photos
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {viewingBike.extra_images.map((img, idx) => (
+                        <div
+                          key={idx}
+                          className="relative group rounded-lg overflow-hidden border border-border"
+                        >
+                          <img
+                            src={img}
+                            className="w-full h-32 object-cover"
+                            alt={`Doc ${idx + 1}`}
+                          />
+                          {/* Hover Overlay with Download Button */}
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => window.open(img, "_blank")}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="bg-primary text-white"
+                              onClick={() =>
+                                downloadImage(img, `bike-doc-${idx + 1}.jpg`)
+                              }
+                            >
+                              <Download className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {viewingBike.description && (
                   <div>

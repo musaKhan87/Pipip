@@ -68,6 +68,10 @@ import { toast } from "sonner";
 import { useEffect } from "react";
 import { useBikeAvailability } from "../../hooks/useBikeAvailability";
 
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+import { Download } from "lucide-react";
+
 const statusColors = {
   pending:
     "bg-yellow-500/15 text-yellow-700 border-yellow-300 dark:text-yellow-400",
@@ -219,7 +223,9 @@ export default function Bookings() {
   const { data: bookings, isLoading } = useBookings(
     activeTab !== "all" ? { status: activeTab } : undefined,
   );
-  
+
+ 
+
   const { data: bikes } = useBikes();
   const { data: customers } = useCustomers();
   const updateStatus = useUpdateBookingStatus();
@@ -227,7 +233,6 @@ export default function Bookings() {
   const createCustomer = useCreateCustomer();
   // Inside Booking.jsx
   const adminCreateMutation = useAdminCreateBooking();
-  
 
   // Add this line below your other useState/useMemo hooks
   const [uploading, setUploading] = useState(false);
@@ -235,85 +240,166 @@ export default function Bookings() {
   const [isAvailable, setIsAvailable] = useState(null);
   const [availabilityMessage, setAvailabilityMessage] = useState(null);
   const { checkAvailability, checking } = useBikeAvailability(); // Assuming you use the same hook
+  const [paymentPreview, setPaymentPreview] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
 
   const [formData, setFormData] = useState(emptyFormData);
 
+  const availableBikes = bikes?.filter((b) => b.status !== "maintenance");
 
- 
-useEffect(() => {
-  const checkDates = async () => {
-    // Determine which data to use (Edit form or Create form)
-    const activeData = editingBooking ? editFormData : formData;
+  const [bikeSearch, setBikeSearch] = useState("");
 
-    if (
-      !activeData.bike_id ||
-      !activeData.start_datetime ||
-      !activeData.end_datetime
-    ) {
-      setAvailabilityMessage(null);
-      setIsAvailable(null);
-      return;
+  const filteredBikes = useMemo(() => {
+    if (!availableBikes) return [];
+    if (!bikeSearch) return availableBikes;
+    const q = bikeSearch.toLowerCase();
+    return availableBikes.filter(
+      (bike) =>
+        bike.model.toLowerCase().includes(q) ||
+        bike.number_plate.toLowerCase().includes(q),
+    );
+  }, [availableBikes, bikeSearch]);
+
+
+
+  // Add this inside your Bookings component
+  useEffect(() => {
+    if (!isOpen) {
+      setBikeSearch(""); // Reset bike search when the dialog closes
     }
+  }, [isOpen]);
 
-    const start = new Date(activeData.start_datetime);
-    const end = new Date(activeData.end_datetime);
 
-    if (end <= start) {
-      setAvailabilityMessage("⚠️ Return date must be after pickup date");
-      setIsAvailable(false);
-      return;
-    }
+  useEffect(() => {
+    const checkDates = async () => {
+      // Determine which data to use (Edit form or Create form)
+      const activeData = editingBooking ? editFormData : formData;
 
-    // Call API
-    const result = await checkAvailability(activeData.bike_id, start, end);
+      if (
+        !activeData.bike_id ||
+        !activeData.start_datetime ||
+        !activeData.end_datetime
+      ) {
+        setAvailabilityMessage(null);
+        setIsAvailable(null);
+        return;
+      }
 
-    // If we are editing, we should ignore the "overlap" if it's the current booking itself
-    if (!result.isAvailable && result.bookingId === editingBooking) {
-      setAvailabilityMessage("✅ This is your current slot");
-      setIsAvailable(true);
-      return;
-    }
+      const start = new Date(activeData.start_datetime);
+      const end = new Date(activeData.end_datetime);
 
-    if (!result.isAvailable && result.bookedFrom) {
-      const fromDate = format(
-        new Date(result.bookedFrom),
-        "dd/MM/yyyy hh:mm a",
-      );
-      const toDate = format(new Date(result.bookedTo), "dd/MM/yyyy hh:mm a");
-      setAvailabilityMessage(`❌ Already booked: ${fromDate} to ${toDate}`);
-      setIsAvailable(false);
-    } else {
-      setAvailabilityMessage(
-        result.isAvailable ? "✅ Bike is available" : result.message,
-      );
-      setIsAvailable(result.isAvailable);
-    }
-  };
+      if (end <= start) {
+        setAvailabilityMessage("⚠️ Return date must be after pickup date");
+        setIsAvailable(false);
+        return;
+      }
 
-  checkDates();
-}, [
-  formData.bike_id,
-  formData.start_datetime,
-  formData.end_datetime,
-  editingBooking,
-  checkAvailability,
-]);
+      // Call API
+      const result = await checkAvailability(activeData.bike_id, start, end);
 
+      // If we are editing, we should ignore the "overlap" if it's the current booking itself
+      if (!result.isAvailable && result.bookingId === editingBooking) {
+        setAvailabilityMessage("✅ This is your current slot");
+        setIsAvailable(true);
+        return;
+      }
+
+      if (!result.isAvailable && result.bookedFrom) {
+        const fromDate = format(
+          new Date(result.bookedFrom),
+          "dd/MM/yyyy hh:mm a",
+        );
+        const toDate = format(new Date(result.bookedTo), "dd/MM/yyyy hh:mm a");
+        setAvailabilityMessage(`❌ Already booked: ${fromDate} to ${toDate}`);
+        setIsAvailable(false);
+      } else {
+        setAvailabilityMessage(
+          result.isAvailable ? "✅ Bike is available" : result.message,
+        );
+        setIsAvailable(result.isAvailable);
+      }
+    };
+
+    checkDates();
+  }, [
+    formData.bike_id,
+    formData.start_datetime,
+    formData.end_datetime,
+    editingBooking,
+    checkAvailability,
+  ]);
+
+ const handleExport = () => {
+   if (!bookings || bookings.length === 0) {
+     toast.error("No data to export");
+     return;
+   }
+
+   const exportData = bookings.map((b) => ({
+     Booking_ID: b._id,
+     Customer_Name: b.customer_name || b.customers?.name,
+     Phone: b.contact_number || b.customers?.phone,
+     Email: b.customer_email || b.customers?.email,
+     Bike: b.bikes?.model,
+     Number_Plate: b.bikes?.number_plate,
+     Start_Date: format(new Date(b.start_datetime), "dd-MM-yyyy HH:mm"),
+     End_Date: format(new Date(b.end_datetime), "dd-MM-yyyy HH:mm"),
+     Status: b.status,
+     Payment_Status: b.payment_status,
+     Rental_Type: b.rental_type,
+     Total_Amount: b.total_amount,
+     Deposit: b.deposit_amount,
+     Fuel_Quantity: b.fuel_quantity,
+     Fuel_Out: b.fuel_out_liters,
+     Fuel_In: b.fuel_in_liters,
+     Penalty: b.penalty_amount,
+     Challan: b.challan_amount,
+     Damage: b.damage_cost,
+     Payment_Method: b.payment_method,
+     Source: b.booking_source,
+     Lead_Source: b.lead_source,
+     Source_Name: b.source_name,
+     Account_Manager: b.account_manager,
+     Notes: b.notes,
+     Remarks: b.remarks,
+   }));
+
+   const worksheet = XLSX.utils.json_to_sheet(exportData);
+   const workbook = XLSX.utils.book_new();
+
+   XLSX.utils.book_append_sheet(workbook, worksheet, "Bookings");
+
+   const excelBuffer = XLSX.write(workbook, {
+     bookType: "xlsx",
+     type: "array",
+   });
+
+   const fileData = new Blob([excelBuffer], {
+     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+   });
+
+   saveAs(fileData, `Bookings_${Date.now()}.xlsx`);
+ };
+  
   // Edit form state
   const [editFormData, setEditFormData] = useState(emptyFormData);
 
-  const filteredBookings = bookings?.filter((booking) => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      booking.customers?.name?.toLowerCase().includes(query) ||
-      booking.customers?.phone?.includes(query) ||
-      booking.bikes?.model?.toLowerCase().includes(query) ||
-      booking.bikes?.number_plate?.toLowerCase().includes(query) ||
-      booking.customer_name?.toLowerCase().includes(query) ||
-      booking.contact_number?.includes(query)
-    );
-  });
+  const filteredBookings = bookings
+    ?.filter((booking) => {
+      if (activeTab === "all") return true;
+      return booking.status === activeTab;
+    })
+    ?.filter((booking) => {
+      if (!searchQuery) return true;
+
+      const query = searchQuery.toLowerCase();
+      return (
+        booking.customers?.name?.toLowerCase().includes(query) ||
+        booking.customers?.phone?.includes(query) ||
+        booking.bikes?.model?.toLowerCase().includes(query) ||
+        booking.bikes?.number_plate?.toLowerCase().includes(query)
+      );
+    });
 
   // Filtered customers for search
   const filteredCustomers = useMemo(() => {
@@ -364,49 +450,125 @@ useEffect(() => {
   };
 
   // Completion confirm
+  // const handleCompletionConfirm = async () => {
+  //   if (!completionDialog) return;
+  //   const booking = bookings?.find((b) => b._id === completionDialog);
+  //   if (!booking) return;
+
+  //   const penalty = Number(completionData.penalty_amount) || 0;
+  //   const challan = Number(completionData.challan_amount) || 0;
+  //   const damage = Number(completionData.damage_cost) || 0;
+  //   const totalDeductions = penalty + challan + damage;
+  //   const depositAfter = Math.max(
+  //     0,
+  //     (booking.deposit_amount || 0) - totalDeductions,
+  //   );
+
+  //   await updateBooking.mutateAsync({
+  //     id: completionDialog,
+  //     fuel_in_liters: Number(completionData.fuel_in_liters) || null,
+  //     penalty_amount: penalty,
+  //     challan_amount: challan,
+  //     damage_cost: damage,
+  //     payment_method: completionData.payment_method,
+  //     remarks: completionData.remarks || booking.remarks || undefined,
+  //   });
+  //   await updateStatus.mutateAsync({
+  //     id: completionDialog,
+  //     status: "completed",
+  //   });
+  //   setCompletionDialog(null);
+  //   setCompletionData(emptyCompletionData);
+  //   if (totalDeductions > 0) {
+  //     toast.success(
+  //       `Ride completed. ₹${totalDeductions} deducted from deposit. Refundable: ₹${depositAfter}`,
+  //     );
+  //   } else {
+  //     toast.success("Ride completed successfully");
+  //   }
+  // };
+
   const handleCompletionConfirm = async () => {
     if (!completionDialog) return;
+
     const booking = bookings?.find((b) => b._id === completionDialog);
     if (!booking) return;
 
     const penalty = Number(completionData.penalty_amount) || 0;
     const challan = Number(completionData.challan_amount) || 0;
     const damage = Number(completionData.damage_cost) || 0;
+
     const totalDeductions = penalty + challan + damage;
+
     const depositAfter = Math.max(
       0,
       (booking.deposit_amount || 0) - totalDeductions,
     );
 
-    await updateBooking.mutateAsync({
-      id: completionDialog,
-      fuel_in_liters: Number(completionData.fuel_in_liters) || null,
-      penalty_amount: penalty,
-      challan_amount: challan,
-      damage_cost: damage,
-      payment_method: completionData.payment_method,
-      remarks: completionData.remarks || booking.remarks || undefined,
-    });
-    await updateStatus.mutateAsync({
-      id: completionDialog,
-      status: "completed",
-    });
-    setCompletionDialog(null);
-    setCompletionData(emptyCompletionData);
-    if (totalDeductions > 0) {
-      toast.success(
-        `Ride completed. ₹${totalDeductions} deducted from deposit. Refundable: ₹${depositAfter}`,
+    try {
+      // ✅ IMPORTANT: use FormData for image upload
+      const formData = new FormData();
+
+      formData.append(
+        "fuel_in_liters",
+        Number(completionData.fuel_in_liters) || "",
       );
-    } else {
-      toast.success("Ride completed successfully");
+      formData.append("penalty_amount", penalty);
+      formData.append("challan_amount", challan);
+      formData.append("damage_cost", damage);
+      formData.append("payment_method", completionData.payment_method);
+      formData.append(
+        "remarks",
+        completionData.remarks || booking.remarks || "",
+      );
+
+      // ✅ ADD THIS (IMAGE)
+      if (completionData.payment_screenshot) {
+        formData.append(
+          "payment_screenshot",
+          completionData.payment_screenshot,
+        );
+      }
+
+      // ✅ SEND FORM DATA
+      await updateBooking.mutateAsync({
+        id: completionDialog,
+        data: formData, // 👈 IMPORTANT CHANGE
+      });
+
+      // ✅ STATUS UPDATE
+      await updateStatus.mutateAsync({
+        id: completionDialog,
+        status: "completed",
+      });
+
+      setCompletionDialog(null);
+      setCompletionData(emptyCompletionData);
+
+      if (totalDeductions > 0) {
+        toast.success(
+          `Ride completed. ₹${totalDeductions} deducted. Refundable: ₹${depositAfter}`,
+        );
+      } else {
+        toast.success("Ride completed successfully");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to complete ride");
     }
   };
 
   // Mark payment as paid
-  const handleMarkPaid = async (bookingId) => {
-    await updateBooking.mutateAsync({ id: bookingId, payment_status: "paid" });
-    toast.success("Payment marked as paid");
-  };
+ const handleMarkPaid = async (bookingId) => {
+   await updateBooking.mutateAsync({
+     id: bookingId,
+     data: {
+       payment_status: "paid",
+     },
+   });
+
+   toast.success("Payment marked as paid");
+ };
 
   // Document handlers
   const handleAadhaarChange = (e, setter, data) => {
@@ -425,6 +587,22 @@ useEffect(() => {
       setter({ ...data, license_file: file });
       const reader = new FileReader();
       reader.onloadend = () => setLicensePreview(reader.result);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handlePaymentImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setCompletionData((prev) => ({
+        ...prev,
+        payment_screenshot: file,
+      }));
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPaymentPreview(reader.result);
+      };
       reader.readAsDataURL(file);
     }
   };
@@ -462,7 +640,6 @@ useEffect(() => {
   //        const customer = await createCustomer.mutateAsync(customerFormData);
   //        customerId = customer._id; // ✅ THIS IS THE KEY FIX
   //      }
-
 
   //   // 2. Mandatory Fields (Match your Schema exactly)
   //   dataToSend.append("bike_id", formData.bike_id);
@@ -507,107 +684,113 @@ useEffect(() => {
   //   }
   // };
 
-const handleCreateBooking = async (e) => {
-  if (e) e.preventDefault();
+  const handleCreateBooking = async (e) => {
+    if (e) e.preventDefault();
 
-  try {
-    setUploading(true);
+    try {
+      setUploading(true);
 
-    let finalCustomerId = formData.customer_id;
-    let finalCustomerName = formData.customer_name;
-    let finalCustomerPhone = formData.customer_phone;
+      let finalCustomerId = formData.customer_id;
+      let finalCustomerName = formData.customer_name;
+      let finalCustomerPhone = formData.customer_phone;
 
-    // 1️⃣ CREATE CUSTOMER FIRST (IF NEW)
-    if (formData.is_new_customer) {
-      console.log("🚀 Step 1: Creating new customer...");
-      const customerFormData = new FormData();
+      // 1️⃣ CREATE CUSTOMER FIRST (IF NEW)
+      if (formData.is_new_customer) {
+        console.log("🚀 Step 1: Creating new customer...");
+        const customerFormData = new FormData();
 
-      // Backend 'Customer' model expects: name, phone, email
-      customerFormData.append("name", formData.customer_name);
-      customerFormData.append("phone", formData.customer_phone);
-      customerFormData.append("email", formData.customer_email || "");
+        // Backend 'Customer' model expects: name, phone, email
+        customerFormData.append("name", formData.customer_name);
+        customerFormData.append("phone", formData.customer_phone);
+        customerFormData.append("email", formData.customer_email || "");
 
-      // IMPORTANT: Backend expects 'aadhaar_image' and 'license_image'
-      // Your console shows they are stored in 'aadhaar_file' and 'license_file'
-      if (!formData.aadhaar_file || !formData.license_file) {
-        toast.error("Aadhaar and License files are required");
-        setUploading(false);
-        return;
+        // IMPORTANT: Backend expects 'aadhaar_image' and 'license_image'
+        // Your console shows they are stored in 'aadhaar_file' and 'license_file'
+        if (!formData.aadhaar_file || !formData.license_file) {
+          toast.error("Aadhaar and License files are required");
+          setUploading(false);
+          return;
+        }
+
+        customerFormData.append("aadhaar_image", formData.aadhaar_file);
+        customerFormData.append("license_image", formData.license_file);
+
+        // Call the customer creation API
+        const savedCustomer =
+          await createCustomer.mutateAsync(customerFormData);
+
+        // Get the ID generated by MongoDB
+        finalCustomerId = savedCustomer._id;
+        console.log("✅ Customer Created with ID:", finalCustomerId);
+      } else {
+        // EXISTING CUSTOMER LOGIC
+        const selectedCust = customers?.find(
+          (c) => c._id === formData.customer_id,
+        );
+        if (!selectedCust) {
+          toast.error("Please select a customer");
+          setUploading(false);
+          return;
+        }
+        finalCustomerId = selectedCust._id;
+        finalCustomerName = selectedCust.name;
+        finalCustomerPhone = selectedCust.phone;
       }
 
-      customerFormData.append("aadhaar_image", formData.aadhaar_file);
-      customerFormData.append("license_image", formData.license_file);
+      // 2️⃣ PREPARE BOOKING DATA
+      console.log("🚀 Step 2: Preparing booking data...");
+      const bookingData = new FormData();
+      const selectedBike = bikes?.find((b) => b._id === formData.bike_id);
 
-      // Call the customer creation API
-      const savedCustomer = await createCustomer.mutateAsync(customerFormData);
+      // Mandatory Booking Fields
+      bookingData.append("customer_id", finalCustomerId);
+      bookingData.append("bike_id", formData.bike_id);
+      bookingData.append("customer_name", finalCustomerName);
+      bookingData.append("contact_number", finalCustomerPhone);
 
-      // Get the ID generated by MongoDB
-      finalCustomerId = savedCustomer._id;
-      console.log("✅ Customer Created with ID:", finalCustomerId);
-    } else {
-      // EXISTING CUSTOMER LOGIC
-      const selectedCust = customers?.find(
-        (c) => c._id === formData.customer_id,
+      bookingData.append("start_datetime", formData.start_datetime);
+      bookingData.append("end_datetime", formData.end_datetime);
+      bookingData.append(
+        "vehicle_make_model",
+        selectedBike ? `${selectedBike.brand} ${selectedBike.model}` : "Bike",
       );
-      if (!selectedCust) {
-        toast.error("Please select a customer");
-        setUploading(false);
-        return;
-      }
-      finalCustomerId = selectedCust._id;
-      finalCustomerName = selectedCust.name;
-      finalCustomerPhone = selectedCust.phone;
+      bookingData.append(
+        "account_manager",
+        formData.account_manager || "Admin",
+      );
+      bookingData.append("rental_type", formData.rental_type || "daily");
+      bookingData.append("lead_source", formData.lead_source || "other");
+      bookingData.append("source_name", formData.source_name || "Direct");
+      bookingData.append("deposit_amount", formData.deposit_amount || 0);
+      bookingData.append("total_amount", formData.total_amount || 0);
+      bookingData.append("payment_method", "cash");
+
+      // Optional Booking Fields
+      bookingData.append("fuel_quantity", formData.fuel_quantity || 0);
+      bookingData.append("notes", formData.notes || "");
+      bookingData.append("remarks", formData.remarks || "");
+
+      // 3️⃣ SEND TO BACKEND
+      await adminCreateMutation.mutateAsync(bookingData);
+
+      setIsOpen(false);
+      resetForm();
+      toast.success("Booking completed successfully!");
+    } catch (err) {
+      console.error("❌ Process Error:", err);
+      toast.error(
+        err.response?.data?.message || "Failed to create customer or booking",
+      );
+    } finally {
+      setUploading(false);
     }
-
-    // 2️⃣ PREPARE BOOKING DATA
-    console.log("🚀 Step 2: Preparing booking data...");
-    const bookingData = new FormData();
-    const selectedBike = bikes?.find((b) => b._id === formData.bike_id);
-
-    // Mandatory Booking Fields
-    bookingData.append("customer_id", finalCustomerId);
-    bookingData.append("bike_id", formData.bike_id);
-    bookingData.append("customer_name", finalCustomerName);
-    bookingData.append("contact_number", finalCustomerPhone);
-
-    bookingData.append("start_datetime", formData.start_datetime);
-    bookingData.append("end_datetime", formData.end_datetime);
-    bookingData.append(
-      "vehicle_make_model",
-      selectedBike ? `${selectedBike.brand} ${selectedBike.model}` : "Bike",
-    );
-    bookingData.append("account_manager", formData.account_manager || "Admin");
-    bookingData.append("rental_type", formData.rental_type || "daily");
-    bookingData.append("lead_source", formData.lead_source || "other");
-    bookingData.append("source_name", formData.source_name || "Direct");
-    bookingData.append("deposit_amount", formData.deposit_amount || 0);
-    bookingData.append("total_amount", formData.total_amount || 0);
-    bookingData.append("payment_method", "cash");
-
-    // Optional Booking Fields
-    bookingData.append("fuel_quantity", formData.fuel_quantity || 0);
-    bookingData.append("notes", formData.notes || "");
-    bookingData.append("remarks", formData.remarks || "");
-
-    // 3️⃣ SEND TO BACKEND
-    await adminCreateMutation.mutateAsync(bookingData);
-
-    setIsOpen(false);
-    resetForm();
-    toast.success("Booking completed successfully!");
-  } catch (err) {
-    console.error("❌ Process Error:", err);
-    toast.error(
-      err.response?.data?.message || "Failed to create customer or booking",
-    );
-  } finally {
-    setUploading(false);
-  }
-};
+  };
 
   // Edit booking (full form)
   const handleEditBooking = (booking) => {
     setEditingBooking(booking._id);
+
+    
     setEditFormData({
       bike_id: booking.bike_id,
       customer_id: booking.customer_id,
@@ -635,52 +818,67 @@ const handleCreateBooking = async (e) => {
       payment_method: booking.payment_method || "cash",
     });
   };
+const handleSaveEdit = async () => {
+  if (!editingBooking) return;
 
-  const handleSaveEdit = async () => {
-    if (!editingBooking) return;
-    const start = new Date(editFormData.start_datetime);
-    const end = new Date(editFormData.end_datetime);
-    if (end.getTime() <= start.getTime()) {
-      toast.error("End time must be after start time");
-      return;
-    }
-    if (!editFormData.total_amount || Number(editFormData.total_amount) <= 0) {
-      toast.error("Please enter rental amount");
-      return;
-    }
+  const start = new Date(editFormData.start_datetime);
+  const end = new Date(editFormData.end_datetime);
 
-    try {
-      await updateBooking.mutateAsync({
-        id: editingBooking,
+  if (end.getTime() <= start.getTime()) {
+    toast.error("End time must be after start time");
+    return;
+  }
+
+  if (!editFormData.total_amount || Number(editFormData.total_amount) <= 0) {
+    toast.error("Please enter rental amount");
+    return;
+  }
+
+  try {
+    await updateBooking.mutateAsync({
+      id: editingBooking,
+      data: {
         start_datetime: start.toISOString(),
         end_datetime: end.toISOString(),
         total_amount: Number(editFormData.total_amount),
+
         customer_name: editFormData.customer_name || undefined,
         contact_number: editFormData.customer_phone || undefined,
         customer_email: editFormData.customer_email || undefined,
         customer_location: editFormData.customer_location || undefined,
+
         lead_source: editFormData.lead_source,
         source_name: editFormData.source_name || undefined,
         rental_type: editFormData.rental_type,
+
         deposit_amount: Number(editFormData.deposit_amount) || 0,
+
         reference_partner_share:
           Number(editFormData.reference_partner_share) || undefined,
+
         provider_partner_share:
           Number(editFormData.provider_partner_share) || undefined,
+
         fuel_quantity: Number(editFormData.fuel_quantity) || undefined,
+
         account_manager: editFormData.account_manager || undefined,
+
         remarks: editFormData.remarks || undefined,
         notes: editFormData.notes || undefined,
-        payment_method: editFormData.payment_method,
-      });
-      setEditingBooking(null);
-      toast.success("Booking updated successfully");
-    } catch (err) {
-      toast.error("Failed to update booking");
-    }
-  };
 
-  const availableBikes = bikes?.filter((b) => b.status !== "maintenance");
+        payment_method: editFormData.payment_method,
+      },
+    });
+
+    setEditingBooking(null);
+    toast.success("Booking updated successfully");
+  } catch (err) {
+    console.error(err);
+    toast.error("Failed to update booking");
+  }
+};
+
+  
 
   // Render form fields (shared between create & edit)
   const renderFormFields = (data, setData, isEdit = false) => (
@@ -690,7 +888,7 @@ const handleCreateBooking = async (e) => {
           Vehicle & Rental
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-2">
+          {/* <div className="space-y-2">
             <Label>Select Bike *</Label>
             <Select
               value={data.bike_id}
@@ -705,6 +903,65 @@ const handleCreateBooking = async (e) => {
                     {bike.model} - {bike.number_plate}
                   </SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </div> */}
+          <div className="space-y-2">
+            <Label>Select Bike *</Label>
+            <Select
+              value={data.bike_id}
+              onValueChange={(v) => setData({ ...data, bike_id: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a bike" />
+              </SelectTrigger>
+              <SelectContent>
+                {/* Search Input Container */}
+                <div className="flex items-center px-3 pb-2 border-b sticky top-0 bg-popover z-50">
+                  <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                  <Input
+                    placeholder="Search model or plate..."
+                    className="flex h-9 w-full rounded-md bg-transparent py-3 text-sm outline-none border-none focus-visible:ring-0"
+                    value={bikeSearch}
+                    onChange={(e) => setBikeSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      // This prevents the Select from closing when pressing space
+                      e.stopPropagation();
+                    }}
+                  />
+                  {bikeSearch && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setBikeSearch("");
+                      }}
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+
+                <ScrollArea className="h-[200px]">
+                  {filteredBikes.length > 0 ? (
+                    filteredBikes.map((bike) => (
+                      <SelectItem key={bike._id} value={bike._id}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{bike.model}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {bike.number_plate}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <div className="py-6 text-center text-sm text-muted-foreground">
+                      No bikes found
+                    </div>
+                  )}
+                </ScrollArea>
               </SelectContent>
             </Select>
           </div>
@@ -1195,11 +1452,24 @@ const handleCreateBooking = async (e) => {
             if (!open) resetForm();
           }}
         >
-          <DialogTrigger asChild>
+          {/* <DialogTrigger asChild>
             <Button className="gradient-sunset text-primary-foreground">
               <Plus className="w-4 h-4 mr-2" /> New Booking
             </Button>
-          </DialogTrigger>
+          </DialogTrigger> */}
+
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleExport}>
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+
+            <DialogTrigger asChild>
+              <Button className="gradient-sunset text-primary-foreground">
+                <Plus className="w-4 h-4 mr-2" /> New Booking
+              </Button>
+            </DialogTrigger>
+          </div>
           <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden p-0">
             <DialogHeader className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-border">
               <DialogTitle className="text-xl">
@@ -1463,6 +1733,36 @@ const handleCreateBooking = async (e) => {
               </div>
 
               <div className="space-y-2">
+                <Label>Payment Screenshot</Label>
+
+                <div
+                  onClick={() =>
+                    document.getElementById("payment-upload").click()
+                  }
+                  className="border-2 border-dashed border-border rounded-xl p-4 text-center cursor-pointer hover:border-primary/50"
+                >
+                  {paymentPreview ? (
+                    <img
+                      src={paymentPreview}
+                      className="max-h-24 mx-auto rounded"
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Upload Payment Screenshot
+                    </p>
+                  )}
+
+                  <input
+                    id="payment-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePaymentImageChange}
+                    className="hidden"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <Label>Final Remarks</Label>
                 <Textarea
                   placeholder="Any final notes about the ride..."
@@ -1663,7 +1963,6 @@ const handleCreateBooking = async (e) => {
                             </div>
                           </div>
 
-                         
                           <div className="space-y-0.5">
                             <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                               Amount
@@ -1912,6 +2211,23 @@ const handleCreateBooking = async (e) => {
                                 </div>
                               )}
                             </div>
+
+                            {booking.payment_screenshot && (
+                              <div>
+                                <span className="text-xs text-muted-foreground uppercase">
+                                  Payment Proof
+                                </span>
+
+                                <img
+                                  src={booking.payment_screenshot}
+                                  className="w-20 h-20 object-cover rounded mt-1 cursor-pointer hover:scale-105 transition"
+                                  onClick={() =>
+                                    setPreviewImage(booking.payment_screenshot)
+                                  }
+                                />
+                              </div>
+                            )}
+
                             {(booking.notes || booking.remarks) && (
                               <div className="mt-3 pt-3 border-t border-border/50 flex flex-wrap gap-3">
                                 {booking.notes && (
@@ -1935,6 +2251,18 @@ const handleCreateBooking = async (e) => {
               </motion.div>
             );
           })}
+
+          {previewImage && (
+            <div
+              className="fixed inset-0 bg-black/80 flex items-center justify-center z-50"
+              onClick={() => setPreviewImage(null)}
+            >
+              <img
+                src={previewImage}
+                className="max-h-[90vh] max-w-[90vw] rounded-lg shadow-lg"
+              />
+            </div>
+          )}
 
           {filteredBookings?.length === 0 && (
             <div className="text-center py-16">

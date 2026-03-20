@@ -249,74 +249,52 @@ exports.getBookingById = async (req, res) => {
 /**
  * UPDATE BOOKING (ADMIN CAN EDIT DETAILS)
  */
-// exports.updateBooking = async (req, res) => {
-//   try {
-//     const booking = await Booking.findById(req.params.id);
-
-//     if (!booking) {
-//       return res.status(404).json({ message: "Booking not found" });
-//     }
-
-//     const { start_datetime, end_datetime, total_amount, notes } = req.body;
-
-//     if (start_datetime !== undefined) booking.start_datetime = start_datetime;
-
-//     if (end_datetime !== undefined) booking.end_datetime = end_datetime;
-
-//     if (total_amount !== undefined) booking.total_amount = total_amount;
-
-//     if (notes !== undefined) booking.notes = notes;
-
-//     booking.updated_by_admin = true;
-
-//     await booking.save();
-
-//     res.json({
-//       message: "Booking updated successfully",
-//       booking,
-//     });
-//   } catch (err) {
-//     res.status(500).json({ message: err.message });
-//   }
-// };
 
 exports.updateBooking = async (req, res) => {
   try {
+    console.log("BODY:", req.body); // ✅ debug
+    console.log("FILE:", req.file); // ✅ debug
+
+    const body = req.body || {}; // ✅ SAFE FIX
+
     const updateData = {
-      ...req.body,
+      ...body,
 
       fuel_out_liters:
-        req.body.fuel_out_liters !== undefined
-          ? Number(req.body.fuel_out_liters)
+        body.fuel_out_liters !== undefined
+          ? Number(body.fuel_out_liters)
           : undefined,
 
       fuel_in_liters:
-        req.body.fuel_in_liters !== undefined
-          ? Number(req.body.fuel_in_liters)
+        body.fuel_in_liters !== undefined
+          ? Number(body.fuel_in_liters)
           : undefined,
 
       penalty_amount:
-        req.body.penalty_amount !== undefined
-          ? Number(req.body.penalty_amount)
+        body.penalty_amount !== undefined
+          ? Number(body.penalty_amount)
           : undefined,
 
       challan_amount:
-        req.body.challan_amount !== undefined
-          ? Number(req.body.challan_amount)
+        body.challan_amount !== undefined
+          ? Number(body.challan_amount)
           : undefined,
 
       damage_cost:
-        req.body.damage_cost !== undefined
-          ? Number(req.body.damage_cost)
-          : undefined,
+        body.damage_cost !== undefined ? Number(body.damage_cost) : undefined,
     };
+
+    // ✅ IMAGE SAVE
+    if (req.file) {
+      updateData.payment_screenshot = req.file.path;
+    }
 
     const booking = await Booking.findByIdAndUpdate(
       req.params.id,
-      { $set: updateData }, // ✅ IMPORTANT
+      { $set: updateData },
       {
         new: true,
-        runValidators: false, // ✅ IMPORTANT
+        runValidators: false,
       },
     );
 
@@ -326,6 +304,53 @@ exports.updateBooking = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// exports.updateBooking = async (req, res) => {
+//   try {
+//     const updateData = {
+//       ...req.body,
+
+//       fuel_out_liters:
+//         req.body.fuel_out_liters !== undefined
+//           ? Number(req.body.fuel_out_liters)
+//           : undefined,
+
+//       fuel_in_liters:
+//         req.body.fuel_in_liters !== undefined
+//           ? Number(req.body.fuel_in_liters)
+//           : undefined,
+
+//       penalty_amount:
+//         req.body.penalty_amount !== undefined
+//           ? Number(req.body.penalty_amount)
+//           : undefined,
+
+//       challan_amount:
+//         req.body.challan_amount !== undefined
+//           ? Number(req.body.challan_amount)
+//           : undefined,
+
+//       damage_cost:
+//         req.body.damage_cost !== undefined
+//           ? Number(req.body.damage_cost)
+//           : undefined,
+//     };
+
+//     const booking = await Booking.findByIdAndUpdate(
+//       req.params.id,
+//       { $set: updateData }, // ✅ IMPORTANT
+//       {
+//         new: true,
+//         runValidators: false, // ✅ IMPORTANT
+//       },
+//     );
+
+//     res.status(200).json(booking);
+//   } catch (error) {
+//     console.error("Update Booking Error:", error);
+//     res.status(500).json({ message: error.message });
+//   }
+// };
 /**
  * UPDATE BOOKING STATUS (FAST ADMIN ACTION)
  */

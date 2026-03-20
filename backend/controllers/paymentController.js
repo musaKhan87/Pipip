@@ -116,7 +116,6 @@ const verifyWebhook = async (req, res) => {
 };
 
 // Add this to your current controller file
-
 const verifyPayment = async (req, res) => {
   try {
     const { orderId } = req.params;

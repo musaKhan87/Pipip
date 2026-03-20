@@ -119,18 +119,51 @@ export function useUpdateBookingStatus() {
 /* =========================
    UPDATE BOOKING (ADMIN)
 ========================= */
+// export function useUpdateBooking() {
+//   const queryClient = useQueryClient();
+
+//   return useMutation({
+//     mutationFn: async ({ id, ...updates }) => {
+//       const { data } = await axios.put(`${API_URL}/${id}`, updates);
+//       return data;
+//     },
+//     onSuccess: () => {
+//       queryClient.invalidateQueries({ queryKey: ["bookings"] });
+//       toast.success("Booking updated successfully");
+//     },
+//     onError: (error) => {
+//       toast.error(error.response?.data?.message || "Update failed");
+//     },
+//   });
+// }
+
 export function useUpdateBooking() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }) => {
-      const { data } = await axios.put(`${API_URL}/${id}`, updates);
-      return data;
+    mutationFn: async ({ id, data }) => {
+      const isFormData = data instanceof FormData;
+
+      const { data: response } = await axios.put(
+        `${API_URL}/${id}`,
+        data,
+        isFormData
+          ? {
+              headers: {
+                "Content-Type": "multipart/form-data",
+              },
+            }
+          : {},
+      );
+
+      return response;
     },
+
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       toast.success("Booking updated successfully");
     },
+
     onError: (error) => {
       toast.error(error.response?.data?.message || "Update failed");
     },

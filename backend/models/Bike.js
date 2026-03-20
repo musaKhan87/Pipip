@@ -76,6 +76,7 @@ const bikeSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Area",
     },
+    extra_images: [{ type: String }], // Array for 5 extra photos images: [{ type: String }], // Ek array jisme saare image paths store honge
   },
   { timestamps: true },
 );
