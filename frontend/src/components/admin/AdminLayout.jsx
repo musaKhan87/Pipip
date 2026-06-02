@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { useAuth } from "../../utils/AuthProvider";
 import { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
+import { useBikes } from "../../hooks/useBikes";
 
 // Determine the backend URL dynamically to support both local development and production
 const getBackendUrl = () => {
@@ -51,6 +52,8 @@ export default function AdminLayout() {
     }
   });
 
+  const { data: bikes } = useBikes();
+
   // Persist logs to localStorage on change
   useEffect(() => {
     try {
@@ -59,6 +62,73 @@ export default function AdminLayout() {
       console.error("Failed to persist notifications to localStorage", e);
     }
   }, [logs]);
+
+  // Scan bikes for document expiry dates periodically
+  useEffect(() => {
+    if (!bikes || bikes.length === 0) return;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize to start of day
+    const expiryAlerts = [];
+
+    bikes.forEach((bike) => {
+      // Helper function to check date and push alert
+      const checkExpiry = (expiryDateStr, dateType, label) => {
+        if (!expiryDateStr) return;
+        const expiryDate = new Date(expiryDateStr);
+        expiryDate.setHours(0, 0, 0, 0);
+        
+        // Calculate days remaining
+        const diffTime = expiryDate.getTime() - today.getTime();
+        const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (daysLeft <= 7) {
+          const uniqueId = `expiry-${bike._id}-${dateType}`;
+          const isExpired = daysLeft <= 0;
+          const statusText = isExpired 
+            ? "HAS EXPIRED!" 
+            : `expires in ${daysLeft} ${daysLeft === 1 ? "day" : "days"}`;
+
+          expiryAlerts.push({
+            id: uniqueId,
+            title: `⚠️ Bike ${label} Expiry`,
+            message: `Bike: ${bike.bike_name || bike.model} (${bike.number_plate}) ${label} ${statusText} on ${new Date(expiryDateStr).toLocaleDateString("en-IN")}.`,
+            type: "expiry",
+            read: false,
+            time: "Expiry Reminder",
+            bikeId: bike._id,
+            bikeNumberPlate: bike.number_plate,
+          });
+        }
+      };
+
+      checkExpiry(bike.insurance_end_date, "insurance", "Insurance");
+      checkExpiry(bike.puc_end_date, "puc", "PUC");
+      checkExpiry(bike.bike_end_date, "lifecycle", "Lifecycle");
+    });
+
+    if (expiryAlerts.length > 0) {
+      setLogs((prev) => {
+        let dismissed = [];
+        try {
+          const savedDismissed = localStorage.getItem("pipip_dismissed_notifications");
+          dismissed = savedDismissed ? JSON.parse(savedDismissed) : [];
+        } catch (e) {}
+
+        // Filter out alerts that already exist in logs or have been dismissed
+        const newAlerts = expiryAlerts.filter(
+          (alert) =>
+            !prev.some((log) => log.id === alert.id) &&
+            !dismissed.includes(alert.id)
+        );
+
+        if (newAlerts.length > 0) {
+          return [...newAlerts, ...prev];
+        }
+        return prev;
+      });
+    }
+  }, [bikes]);
 
   // Global socket listener for new order alerts
   useEffect(() => {

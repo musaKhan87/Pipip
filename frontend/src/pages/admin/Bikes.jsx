@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Dialog,
@@ -78,6 +79,7 @@ const initialFormData = {
 };
 
 export default function Bikes() {
+  const [searchParams] = useSearchParams();
   const [isOpen, setIsOpen] = useState(false);
   const [editingBike, setEditingBike] = useState(null);
   const [viewingBike, setViewingBike] = useState(null);
@@ -92,6 +94,23 @@ export default function Bikes() {
   const updateBike = useUpdateBike();
   const deleteBike = useDeleteBike();
   const [selectedFile, setSelectedFile] = useState(null);
+
+  useEffect(() => {
+    const searchVal = searchParams.get("search");
+    if (searchVal) {
+      setSearchQuery(searchVal);
+      if (bikes && bikes.length > 0) {
+        const matched = bikes.find(
+          (b) =>
+            b._id === searchVal ||
+            b.number_plate?.toLowerCase() === searchVal.toLowerCase()
+        );
+        if (matched) {
+          setViewingBike(matched);
+        }
+      }
+    }
+  }, [searchParams, bikes]);
 
   // State for multiple extra files
   const [extraFiles, setExtraFiles] = useState([]);

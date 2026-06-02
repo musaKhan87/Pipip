@@ -10,11 +10,13 @@ import {
   Volume2,
   Layers,
   ArrowRight,
+  AlertTriangle,
 } from "lucide-react";
 import axios from "axios";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { cn } from "../../utils/utils";
 import { Button } from "../../components/ui/Button";
+import { Card, CardContent } from "../../components/ui/card";
 
 // Determine the backend URL dynamically to support both local development and production
 const getBackendUrl = () => {
@@ -127,49 +129,55 @@ export default function NotificationsCenter() {
 
   return (
     <div className="w-full space-y-6">
-      {/* ========================================================================= */}
-      {/* 🌅 PREMIUM HEADER BANNER (MATCHES SIDEBAR .gradient-sunset PARAMS) */}
-      {/* ========================================================================= */}
-      <div className="relative overflow-hidden rounded-2xl gradient-sunset p-6 text-primary-foreground shadow-golden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div className="flex items-center gap-4">
-          <div className="p-3 bg-white/10 rounded-xl backdrop-blur-md border border-white/20">
-            <Smartphone className="w-8 h-8 text-white animate-pulse" />
-          </div>
-          <div>
-            <h2 className="font-display text-2xl font-bold tracking-tight">
-              Mobile Device Notification Interceptor
-            </h2>
-            <p className="text-white/80 text-sm mt-1 max-w-md">
-              Receive high-priority WhatsApp-style sound banners directly on
-              your smartphone screen the exact second a client books online.
-            </p>
-          </div>
+      {/* Header matching the layout of other panels */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-display text-gradient-sunset">Notifications Center</h1>
+          <p className="text-muted-foreground">Manage real-time online orders and bike document validity alerts</p>
         </div>
-
-        <Button
-          onClick={syncSmartDeviceNotificationChannels}
-          disabled={linkingProcess || deviceLinked}
-          className={cn(
-            "w-full md:w-auto h-12 px-6 rounded-xl font-semibold transition-all duration-300 shadow-md flex items-center justify-center gap-2",
-            deviceLinked
-              ? "bg-white/10 text-white cursor-default border border-white/20 hover:bg-white/10 shadow-none"
-              : "bg-white text-zinc-900 hover:bg-zinc-100 hover:scale-[1.02]",
-          )}
-        >
-          {deviceLinked ? (
-            <>
-              <ShieldCheck className="w-5 h-5 text-white" /> Linked Active
-            </>
-          ) : linkingProcess ? (
-            "Binding Handshakes..."
-          ) : (
-            <>
-              <Radio className="w-4 h-4 text-rose-500 animate-ping" /> Link
-              Admin Phone
-            </>
-          )}
-        </Button>
       </div>
+
+      {/* Sleek, premium designed Mobile push Link card */}
+      <Card className="bg-card border-border shadow-golden overflow-hidden">
+        <CardContent className="p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-rose-500/10 dark:bg-rose-500/5 rounded-xl border border-rose-500/20 shrink-0">
+              <Smartphone className="w-6 h-6 text-rose-500 animate-pulse" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-lg text-foreground">
+                Mobile Push Notification Handshake
+              </h3>
+              <p className="text-muted-foreground text-sm mt-1 max-w-xl leading-relaxed">
+                Connect your smartphone browser to register for high-priority lock screen push banners the exact second a client checkouts online.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            onClick={syncSmartDeviceNotificationChannels}
+            disabled={linkingProcess || deviceLinked}
+            className={cn(
+              "w-full md:w-auto h-11 px-5 rounded-xl font-semibold transition-all duration-300 shadow-md flex items-center justify-center gap-2",
+              deviceLinked
+                ? "bg-zinc-100 text-zinc-500 border border-zinc-200 hover:bg-zinc-100 shadow-none cursor-default dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-400"
+                : "gradient-sunset text-primary-foreground hover:scale-[1.02]"
+            )}
+          >
+            {deviceLinked ? (
+              <>
+                <ShieldCheck className="w-4 h-4 text-emerald-500" /> Phone Synced
+              </>
+            ) : linkingProcess ? (
+              "Binding Handshake..."
+            ) : (
+              <>
+                <Radio className="w-3.5 h-3.5 text-white animate-ping" /> Link Admin Phone
+              </>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* ========================================================================= */}
       {/* 📑 ALERT HISTORY HEADER COUNTERS CONTROLS */}
@@ -198,7 +206,23 @@ export default function NotificationsCenter() {
           </button>
           <span className="text-border">|</span>
           <button
-            onClick={() => setLogs([])}
+            onClick={() => {
+              // Capture all expiry alerts in logs and add them to dismissed list
+              const expiryIds = logs
+                .filter((l) => l.id.toString().startsWith("expiry-"))
+                .map((l) => l.id);
+              if (expiryIds.length > 0) {
+                try {
+                  const saved = localStorage.getItem("pipip_dismissed_notifications");
+                  const dismissed = saved ? JSON.parse(saved) : [];
+                  const updated = Array.from(new Set([...dismissed, ...expiryIds]));
+                  localStorage.setItem("pipip_dismissed_notifications", JSON.stringify(updated));
+                } catch (e) {
+                  console.error("Failed to dismiss alerts during reset", e);
+                }
+              }
+              setLogs([]);
+            }}
             className="text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1.5"
           >
             <Trash2 className="w-4 h-4" /> Reset Stream
@@ -212,7 +236,9 @@ export default function NotificationsCenter() {
       <div className="space-y-3">
         <AnimatePresence mode="popLayout">
           {logs.map((log) => {
-            const hasRedirect = log.type === "order" && log.bookingData;
+            const isOrder = log.type === "order" && log.bookingData;
+            const isExpiry = log.type === "expiry";
+            const hasRedirect = isOrder || isExpiry;
             return (
               <motion.div
                 key={log.id}
@@ -227,11 +253,16 @@ export default function NotificationsCenter() {
                       item.id === log.id ? { ...item, read: true } : item
                     )
                   );
-                  // Redirect if order and has booking data
-                  if (hasRedirect) {
+                  // Redirect if order or expiry alerts
+                  if (isOrder) {
                     const bookingId = log.bookingData._id || log.bookingData.payment_order_id || log.bookingData.booking_id;
                     if (bookingId) {
                       navigate(`/admin/panel/bookings?search=${encodeURIComponent(bookingId)}`);
+                    }
+                  } else if (isExpiry) {
+                    const bikeSearchTerm = log.bikeNumberPlate || log.bikeId;
+                    if (bikeSearchTerm) {
+                      navigate(`/admin/panel/bikes?search=${encodeURIComponent(bikeSearchTerm)}`);
                     }
                   }
                 }}
@@ -243,43 +274,49 @@ export default function NotificationsCenter() {
                   hasRedirect && "cursor-pointer hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50"
                 )}
               >
-                <div className="p-4 flex gap-4 items-center">
-                  <div
-                    className={cn(
-                      "p-2.5 rounded-lg shrink-0",
-                      log.type === "order"
-                        ? "bg-rose-500/10 text-rose-500 animate-bounce"
-                        : "bg-zinc-500/10 text-zinc-500",
-                    )}
-                  >
-                    {log.type === "order" ? (
-                      <Volume2 className="w-4 h-4" />
-                    ) : (
-                      <Layers className="w-4 h-4" />
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline gap-4">
-                      <h4
-                        className={cn(
-                          "text-sm font-bold tracking-tight",
-                          log.read ? "text-muted-foreground" : "text-foreground",
-                        )}
-                      >
-                        {log.title}
-                      </h4>
-                      <span className="text-[10px] text-muted-foreground font-semibold uppercase">
-                        {log.time}
-                      </span>
+                <div className="p-4 flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
+                  <div className="flex gap-3 items-start min-w-0 flex-1">
+                    <div
+                      className={cn(
+                        "p-2.5 rounded-lg shrink-0 mt-0.5",
+                        log.type === "order"
+                          ? "bg-rose-500/10 text-rose-500 animate-bounce"
+                          : log.type === "expiry"
+                          ? "bg-amber-500/10 text-amber-500"
+                          : "bg-zinc-500/10 text-zinc-500",
+                      )}
+                    >
+                      {log.type === "order" ? (
+                        <Volume2 className="w-4 h-4" />
+                      ) : log.type === "expiry" ? (
+                        <AlertTriangle className="w-4 h-4" />
+                      ) : (
+                        <Layers className="w-4 h-4" />
+                      )}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-1 whitespace-pre-line leading-relaxed">
-                      {log.message}
-                    </p>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-baseline gap-1 sm:gap-4">
+                        <h4
+                          className={cn(
+                            "text-sm font-bold tracking-tight truncate",
+                            log.read ? "text-muted-foreground" : "text-foreground",
+                          )}
+                        >
+                          {log.title}
+                        </h4>
+                        <span className="text-[10px] text-muted-foreground font-semibold uppercase shrink-0">
+                          {log.time}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1 whitespace-pre-line leading-relaxed break-words">
+                        {log.message}
+                      </p>
+                    </div>
                   </div>
 
                   {/* Individual actions */}
-                  <div className="flex gap-2 shrink-0 ml-2">
+                  <div className="flex gap-2 shrink-0 sm:self-center justify-end border-t sm:border-t-0 pt-2 sm:pt-0 mt-2 sm:mt-0">
                     {!log.read && (
                       <button
                         onClick={(e) => {
@@ -290,7 +327,7 @@ export default function NotificationsCenter() {
                             )
                           );
                         }}
-                        className="p-2 rounded-lg bg-zinc-100 hover:bg-emerald-500/10 text-zinc-500 hover:text-emerald-600 transition-colors dark:bg-zinc-800"
+                        className="p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-500/10 text-zinc-500 hover:text-emerald-600 transition-colors"
                         title="Mark as read"
                       >
                         <Check className="w-4 h-4" />
@@ -300,8 +337,22 @@ export default function NotificationsCenter() {
                       onClick={(e) => {
                         e.stopPropagation();
                         setLogs((prev) => prev.filter((item) => item.id !== log.id));
+                        
+                        // Dismiss list for expiry reminders
+                        if (log.id.toString().startsWith("expiry-")) {
+                          try {
+                            const saved = localStorage.getItem("pipip_dismissed_notifications");
+                            const dismissed = saved ? JSON.parse(saved) : [];
+                            if (!dismissed.includes(log.id)) {
+                              dismissed.push(log.id);
+                              localStorage.setItem("pipip_dismissed_notifications", JSON.stringify(dismissed));
+                            }
+                          } catch (err) {
+                            console.error("Failed to dismiss alert", err);
+                          }
+                        }
                       }}
-                      className="p-2 rounded-lg bg-zinc-100 hover:bg-destructive/10 text-zinc-500 hover:text-destructive transition-colors dark:bg-zinc-800"
+                      className="p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-destructive/10 text-zinc-500 hover:text-destructive transition-colors"
                       title="Delete notification"
                     >
                       <Trash2 className="w-4 h-4" />
