@@ -18,6 +18,7 @@ import { cn } from "../../utils/utils";
 import { Button } from "../../components/ui/Button";
 import { Card, CardContent } from "../../components/ui/card";
 
+
 // Determine the backend URL dynamically to support both local development and production
 const getBackendUrl = () => {
   if (import.meta.env.VITE_BACKEND_URL) {

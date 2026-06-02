@@ -135,7 +135,7 @@ export default function AdminLayout() {
     if (!user || !isAdminOrStaff) return;
 
     const socket = io(BACKEND_URL, {
-      transports: ["websocket", "polling"],
+      transports: ["polling","websocket" ],
       secure: BACKEND_URL.startsWith("https"),
       withCredentials: true,
     });
