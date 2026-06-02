@@ -284,23 +284,7 @@ export default function Bookings() {
   const [expandedBookingId, setExpandedBookingId] = useState(null);
   const [customerSearch, setCustomerSearch] = useState("");
 
-  useEffect(() => {
-    const searchVal = searchParams.get("search");
-    if (searchVal) {
-      setSearchQuery(searchVal);
-      if (bookings && bookings.length > 0) {
-        const matched = bookings.find(
-          (b) =>
-            b._id === searchVal ||
-            b._id?.toLowerCase().includes(searchVal.toLowerCase())
-        );
-        if (matched) {
-          setExpandedBookingId(matched._id);
-        }
-      }
-    }
-  }, [searchParams, bookings]);
-
+ 
   // Completion dialog
   const [completionDialog, setCompletionDialog] = useState(null);
   const [completionData, setCompletionData] = useState(emptyCompletionData);
@@ -417,6 +401,24 @@ export default function Bookings() {
     editingBooking,
     checkAvailability,
   ]);
+
+   useEffect(() => {
+     const searchVal = searchParams.get("search");
+     if (searchVal) {
+       setSearchQuery(searchVal);
+       if (bookings && bookings.length > 0) {
+         const matched = bookings.find(
+           (b) =>
+             b._id === searchVal ||
+             b._id?.toLowerCase().includes(searchVal.toLowerCase()),
+         );
+         if (matched) {
+           setExpandedBookingId(matched._id);
+         }
+       }
+     }
+   }, [searchParams, bookings]);
+
 
   const handleExport = () => {
     if (!bookings || bookings.length === 0) {
