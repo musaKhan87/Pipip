@@ -16,9 +16,24 @@ import axios from "axios";
 import { cn } from "../../utils/utils";
 import { Button } from "../../components/ui/Button";
 
+// Determine the backend URL dynamically to support both local development and production
+const getBackendUrl = () => {
+  if (import.meta.env.VITE_BACKEND_URL) {
+    return import.meta.env.VITE_BACKEND_URL;
+  }
+  return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+    ? "http://localhost:5000"
+    : "https://pipip-backend.onrender.com";
+};
+
+const BACKEND_URL = getBackendUrl();
+
 // Initialized global socket stream connection layer matching server.js configurations
-// const socket = io(import.meta.env.VITE_BACKEND_URL || "http://localhost:5000");
-const socket = io("https://pipip-backend.onrender.com");
+const socket = io(BACKEND_URL, {
+  transports: ["websocket", "polling"],
+  secure: BACKEND_URL.startsWith("https"),
+  withCredentials: true,
+});
 
 
 export default function NotificationsCenter() {
@@ -123,9 +138,7 @@ export default function NotificationsCenter() {
 
       // Ship device endpoint token credentials safely up to our node endpoint routes
       await axios.post(
-        // `${"http://localhost:5000"}/api/notifications/subscribe`,
-        `${"https://pipip-backend.onrender.com"}/api/notifications/subscribe`,
-
+        `${BACKEND_URL}/api/notifications/subscribe`,
         activeTokenSubscription,
         { credentials: true },
       );

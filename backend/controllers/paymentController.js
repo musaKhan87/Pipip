@@ -2,6 +2,8 @@
 const crypto = require("crypto");
 const cashfree = require("../utils/cashfree");
 const Booking = require("../models/Booking"); // Adjust path to your Booking model
+const { sendOrderAlerts } = require("./notificationController");
+
 
 // const createPaymentOrder = async (req, res) => {
 //   try {
@@ -102,15 +104,18 @@ const verifyWebhook = async (req, res) => {
     // 2. Lock bike
     // 3. Send confirmation SMS / Email
 
-    await Booking.findOneAndUpdate(
-      { payment_order_id: order_id },
+    const booking = await Booking.findOneAndUpdate(
+      { payment_order_id: order_id, payment_status: { $ne: "paid" } },
       {
         payment_status: "paid",
-        booking_source: "online", // <--- ADDED THIS LINE
-        
+        booking_source: "online",
       },
+      { new: true }
     );
-    console.log("Payment successful for:", order_id);
+    if (booking) {
+      sendOrderAlerts(booking, req.app.get("io"));
+      console.log("Payment successful and notification triggered for:", order_id);
+    }
   }
 
   res.status(200).json({ received: true });
@@ -148,6 +153,7 @@ const verifyPayment = async (req, res) => {
           booking_source: "online", // <--- ADDED THIS LINE
          
         });
+        sendOrderAlerts(booking, req.app.get("io"));
       }
 
       return res.status(200).json({

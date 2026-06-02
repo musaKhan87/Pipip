@@ -63,7 +63,7 @@ exports.sendOrderAlerts = async (orderData, io) => {
     body: alertText,
     icon: "/logo.jpeg",
     badge: "/logo.jpeg",
-    url: "/admin/notifications",
+    url: "/admin/panel/notifications",
   });
 
   try {
@@ -71,6 +71,7 @@ exports.sendOrderAlerts = async (orderData, io) => {
 
     subscriptions.forEach((sub) => {
       webpush.sendNotification(sub, pushPayload).catch(async (err) => {
+        console.error("Failed to send web-push notification to subscription endpoint:", sub.endpoint, err);
         // Automatically prune old or revoked device tokens if a manager resets browser settings
         if (err.statusCode === 410 || err.statusCode === 404) {
           await Subscription.deleteOne({ _id: sub._id });
