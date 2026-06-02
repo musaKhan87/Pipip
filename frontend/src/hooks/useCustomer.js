@@ -2,8 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { toast } from "sonner";
 
-const API_URL = "http://localhost:5000/api/customers";
-// const API_URL = " https://pipip-backend.onrender.com/api/customers";
+// const API_URL = "http://localhost:5000/api/customers";
+const API_URL = " https://pipip-backend.onrender.com/api/customers";
 
 
 /* =========================

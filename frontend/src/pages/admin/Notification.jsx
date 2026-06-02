@@ -17,7 +17,9 @@ import { cn } from "../../utils/utils";
 import { Button } from "../../components/ui/Button";
 
 // Initialized global socket stream connection layer matching server.js configurations
-const socket = io(import.meta.env.VITE_BACKEND_URL || "http://localhost:5000");
+// const socket = io(import.meta.env.VITE_BACKEND_URL || "http://localhost:5000");
+const socket = io("https://pipip-backend.onrender.com");
+
 
 export default function NotificationsCenter() {
   const [deviceLinked, setDeviceLinked] = useState(false);
@@ -121,7 +123,9 @@ export default function NotificationsCenter() {
 
       // Ship device endpoint token credentials safely up to our node endpoint routes
       await axios.post(
-        `${import.meta.env.VITE_BACKEND_URL || "http://localhost:5000"}/api/notifications/subscribe`,
+        // `${"http://localhost:5000"}/api/notifications/subscribe`,
+        `${"https://pipip-backend.onrender.com"}/api/notifications/subscribe`,
+
         activeTokenSubscription,
         { credentials: true },
       );
