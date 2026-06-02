@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { useEffect } from "react"; 
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Catalog from "./pages/Catalog";
@@ -18,8 +19,23 @@ import AdminLogin from "./pages/AdminLogin";
 import Settings from "./pages/admin/Settings";
 import Contact from "./components/Contact";
 import BookBike from "./pages/BookBike";
+import TermsAndConditions from "./pages/TermsAndConditions";
+import RefundPolicy from "./pages/RefundPolicy";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import NotificationsCenter from "./pages/admin/Notification"; // 👈 NEW: Notification view import
 function App() {
   const queryClient = new QueryClient();
+  // 📱 SYSTEM REGISTER: Initialize Service Worker stream interface context
+  useEffect(() => {
+    if ("serviceWorker" in navigator && "PushManager" in window) {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then(() => console.log("Pipip Background Engine Connected"))
+        .catch((err) =>
+          console.error("Service Worker registration failed:", err),
+        );
+    }
+  }, []);
   return (
     <>
       <QueryClientProvider client={queryClient}>
@@ -30,7 +46,13 @@ function App() {
               <Route path="/" element={<Index />} />
               <Route path="/catalog" element={<Catalog />} />
               <Route path="/book/:bikeId" element={<BookBike />} />
-              <Route path="/contact" element={<Contact/>} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+              <Route
+                path="/terms-and-conditions"
+                element={<TermsAndConditions />}
+              />
+              <Route path="/refund-policy" element={<RefundPolicy />} />
               <Route path="/admin" element={<AdminLogin />} />
 
               <Route path="/admin/panel" element={<AdminLayout />}>
@@ -41,6 +63,8 @@ function App() {
                 <Route path="areas" element={<Areas />} />
                 <Route path="active-rentals" element={<ActiveRentals />} />
                 <Route path="scheduler" element={<Scheduler />} />
+                {/* 👈 NEW: Mount Notifications View cleanly within Admin Grid matching paths entry */}
+                <Route path="notifications" element={<NotificationsCenter />} />
                 <Route path="reports" element={<Reports />} />
                 <Route path="settings" element={<Settings />} />
               </Route>

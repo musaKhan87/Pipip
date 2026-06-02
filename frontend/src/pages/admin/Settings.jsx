@@ -40,8 +40,8 @@ export default function Settings() {
  });
 
  // Base URL for your Node.js backend
-  //  const API_URL = "http://localhost:5000/api/auth";
-  const API_URL = "https://pipip-backend.onrender.com/api/auth";
+   const API_URL = "http://localhost:5000/api/auth";
+  // const API_URL = "https://pipip-backend.onrender.com/api/auth";
 
 
  useEffect(() => {
@@ -310,15 +310,74 @@ export default function Settings() {
                 Add and manage admin/staff accounts
               </CardDescription>
             </div>
-            <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-primary w-full sm:w-auto">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Staff
-                </Button>
-              </DialogTrigger>
-              {/* ... Keep DialogContent same ... */}
-            </Dialog>
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+  <DialogTrigger asChild>
+    <Button className="bg-primary w-full sm:w-auto">
+      <Plus className="w-4 h-4 mr-2" />
+      Add Staff
+    </Button>
+  </DialogTrigger>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Add New Staff Member</DialogTitle>
+    </DialogHeader>
+    <form onSubmit={handleAddStaff} className="space-y-4">
+      <div className="space-y-2">
+        <Label>Full Name</Label>
+        <Input
+          value={newStaff.fullName}
+          onChange={(e) => setNewStaff({ ...newStaff, fullName: e.target.value })}
+          placeholder="John Doe"
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Email</Label>
+        <Input
+          type="email"
+          value={newStaff.email}
+          onChange={(e) => setNewStaff({ ...newStaff, email: e.target.value })}
+          placeholder="john@example.com"
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Password</Label>
+        <Input
+          type="password"
+          value={newStaff.password}
+          onChange={(e) => setNewStaff({ ...newStaff, password: e.target.value })}
+          placeholder="••••••••"
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Role</Label>
+        <Select
+          value={newStaff.role}
+          onValueChange={(v) => setNewStaff({ ...newStaff, role: v })}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="staff">Staff</SelectItem>
+            <SelectItem value="admin">Admin</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
+          Cancel
+        </Button>
+        <Button type="submit" className="bg-primary">
+          Create Account
+        </Button>
+      </div>
+    </form>
+  </DialogContent>
+</Dialog>
+           
           </CardHeader>
           <CardContent>
             {loading ? (

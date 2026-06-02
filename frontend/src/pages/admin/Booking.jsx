@@ -47,6 +47,7 @@ import {
   Edit,
   Upload,
   Fuel,
+  Bike,
   Globe,
   Store,
   User,
@@ -181,23 +182,92 @@ const emptyCompletionData = {
   remarks: "",
 };
 
+// const roundToHour = (dateTimeStr) => {
+//   if (!dateTimeStr) return "";
+//   const date = new Date(dateTimeStr);
+//   const minutes = date.getMinutes();
+
+//   // If there are any minutes, round up to the next full hour
+//   if (minutes > 0) {
+//     date.setMinutes(0);
+//     date.setHours(date.getHours() + 1);
+//   }
+
+//   const year = date.getFullYear();
+//   const month = String(date.getMonth() + 1).padStart(2, "0");
+//   const day = String(date.getDate()).padStart(2, "0");
+//   const hours = String(date.getHours()).padStart(2, "0");
+
+//   return `${year}-${month}-${day}T${hours}:00`;
+// };
+
+// const roundToHour = (dateTimeStr) => {
+//   if (!dateTimeStr) return "";
+//   const date = new Date(dateTimeStr);
+
+//   // Convert to IST context if necessary before rounding
+//   const minutes = date.getMinutes();
+//   if (minutes > 0) {
+//     date.setMinutes(0);
+//     date.setHours(date.getHours() + 1);
+//   }
+
+//   // Format specifically for the datetime-local input which expects YYYY-MM-DDTHH:mm
+//   const options = {
+//     timeZone: "Asia/Kolkata",
+//     year: "numeric",
+//     month: "2-digit",
+//     day: "2-digit",
+//     hour: "2-digit",
+//     minute: "2-digit",
+//     hour12: false,
+//   };
+
+//   const formatter = new Intl.DateTimeFormat("en-IN", options);
+//   const parts = formatter.formatToParts(date);
+//   const f = (type) => parts.find((p) => p.type === type).value;
+
+//   return `${f("year")}-${f("month")}-${f("day")}T${f("hour")}:00`;
+// };
+
 const roundToHour = (dateTimeStr) => {
   if (!dateTimeStr) return "";
   const date = new Date(dateTimeStr);
-  const minutes = date.getMinutes();
 
-  // If there are any minutes, round up to the next full hour
-  if (minutes > 0) {
-    date.setMinutes(0);
-    date.setHours(date.getHours() + 1);
+  const minutes = date.getMinutes();
+  const seconds = date.getSeconds();
+
+  // Only run rounding logic if it's NOT exactly :00 or :30
+  if (minutes !== 0 && minutes !== 30) {
+    if (minutes < 30) {
+      // If 10:01 - 10:29 -> 10:30
+      date.setMinutes(30);
+    } else {
+      // If 10:31 - 10:59 -> 11:00
+      date.setMinutes(0);
+      date.setHours(date.getHours() + 1);
+    }
   }
 
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
+  // Always reset seconds/ms to ensure 10:30:05 becomes 10:30:00
+  date.setSeconds(0);
+  date.setMilliseconds(0);
 
-  return `${year}-${month}-${day}T${hours}:00`;
+  const options = {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  };
+
+  const formatter = new Intl.DateTimeFormat("en-IN", options);
+  const parts = formatter.formatToParts(date);
+  const f = (type) => parts.find((p) => p.type === type).value;
+
+  return `${f("year")}-${f("month")}-${f("day")}T${f("hour")}:${f("minute")}`;
 };
 
 export default function Bookings() {
@@ -224,8 +294,6 @@ export default function Bookings() {
     activeTab !== "all" ? { status: activeTab } : undefined,
   );
 
- 
-
   const { data: bikes } = useBikes();
   const { data: customers } = useCustomers();
   const updateStatus = useUpdateBookingStatus();
@@ -243,11 +311,16 @@ export default function Bookings() {
   const [paymentPreview, setPaymentPreview] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
 
+  // Add these with your other customer states
+  const [extraDocFiles, setExtraDocFiles] = useState([]); // Binary files
+  const [extraDocPreviews, setExtraDocPreviews] = useState([]); // UI previews
+
   const [formData, setFormData] = useState(emptyFormData);
 
   const availableBikes = bikes?.filter((b) => b.status !== "maintenance");
 
   const [bikeSearch, setBikeSearch] = useState("");
+  const updateCustomerMutation = useUpdateCustomer();
 
   const filteredBikes = useMemo(() => {
     if (!availableBikes) return [];
@@ -260,15 +333,12 @@ export default function Bookings() {
     );
   }, [availableBikes, bikeSearch]);
 
-
-
   // Add this inside your Bookings component
   useEffect(() => {
     if (!isOpen) {
       setBikeSearch(""); // Reset bike search when the dialog closes
     }
   }, [isOpen]);
-
 
   useEffect(() => {
     const checkDates = async () => {
@@ -329,59 +399,82 @@ export default function Bookings() {
     checkAvailability,
   ]);
 
- const handleExport = () => {
-   if (!bookings || bookings.length === 0) {
-     toast.error("No data to export");
-     return;
-   }
+  const handleExport = () => {
+    if (!bookings || bookings.length === 0) {
+      toast.error("No data to export");
+      return;
+    }
 
-   const exportData = bookings.map((b) => ({
-     Booking_ID: b._id,
-     Customer_Name: b.customer_name || b.customers?.name,
-     Phone: b.contact_number || b.customers?.phone,
-     Email: b.customer_email || b.customers?.email,
-     Bike: b.bikes?.model,
-     Number_Plate: b.bikes?.number_plate,
-     Start_Date: format(new Date(b.start_datetime), "dd-MM-yyyy HH:mm"),
-     End_Date: format(new Date(b.end_datetime), "dd-MM-yyyy HH:mm"),
-     Status: b.status,
-     Payment_Status: b.payment_status,
-     Rental_Type: b.rental_type,
-     Total_Amount: b.total_amount,
-     Deposit: b.deposit_amount,
-     Fuel_Quantity: b.fuel_quantity,
-     Fuel_Out: b.fuel_out_liters,
-     Fuel_In: b.fuel_in_liters,
-     Penalty: b.penalty_amount,
-     Challan: b.challan_amount,
-     Damage: b.damage_cost,
-     Payment_Method: b.payment_method,
-     Source: b.booking_source,
-     Lead_Source: b.lead_source,
-     Source_Name: b.source_name,
-     Account_Manager: b.account_manager,
-     Notes: b.notes,
-     Remarks: b.remarks,
-   }));
+    const exportData = bookings.map((b) => ({
+      Booking_ID: b._id,
+      Customer_Name: b.customer_name || b.customers?.name,
+      Phone: b.contact_number || b.customers?.phone,
+      Email: b.customer_email || b.customers?.email,
+      Bike: b.bikes?.model,
+      Number_Plate: b.bikes?.number_plate,
+      // Start_Date: format(new Date(b.start_datetime), "dd-MM-yyyy HH:mm"),
+      Start_Date: new Date(b.start_datetime).toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
+      }),
+      // End_Date: format(new Date(b.end_datetime), "dd-MM-yyyy HH:mm"),
+      End_Date: new Date(b.end_datetime).toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
+      }),
 
-   const worksheet = XLSX.utils.json_to_sheet(exportData);
-   const workbook = XLSX.utils.book_new();
+      Status: b.status,
+      Payment_Status: b.payment_status,
+      Rental_Type: b.rental_type,
+      Total_Amount: b.total_amount,
+      Deposit: b.deposit_amount,
+      Fuel_Quantity: b.fuel_quantity,
+      Fuel_Out: b.fuel_out_liters,
+      Fuel_In: b.fuel_in_liters,
+      Penalty: b.penalty_amount,
+      Challan: b.challan_amount,
+      Damage: b.damage_cost,
+      Payment_Method: b.payment_method,
+      Source: b.booking_source,
+      Lead_Source: b.lead_source,
+      Source_Name: b.source_name,
+      Account_Manager: b.account_manager,
+      Notes: b.notes,
+      Remarks: b.remarks,
+    }));
 
-   XLSX.utils.book_append_sheet(workbook, worksheet, "Bookings");
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
 
-   const excelBuffer = XLSX.write(workbook, {
-     bookType: "xlsx",
-     type: "array",
-   });
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Bookings");
 
-   const fileData = new Blob([excelBuffer], {
-     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-   });
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
 
-   saveAs(fileData, `Bookings_${Date.now()}.xlsx`);
- };
-  
+    const fileData = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    saveAs(fileData, `Bookings_${Date.now()}.xlsx`);
+  };
+
+  // const handleAssignBike = async () => {
+  //   if (!assignDialog || !assignBikeId) return;
+  //   try {
+  //     await assignBikeMutation.mutateAsync({
+  //       id: assignDialog,
+  //       bike_id: assignBikeId,
+  //     });
+  //     setAssignDialog(null);
+  //     setAssignBikeId("");
+  //     toast.success("Scooter assigned successfully!");
+  //   } catch (err) {
+  //     toast.error(err?.response?.data?.message || "Failed to assign bike");
+  //   }
+  // };
+
   // Edit form state
+
   const [editFormData, setEditFormData] = useState(emptyFormData);
 
   const filteredBookings = bookings
@@ -559,16 +652,16 @@ export default function Bookings() {
   };
 
   // Mark payment as paid
- const handleMarkPaid = async (bookingId) => {
-   await updateBooking.mutateAsync({
-     id: bookingId,
-     data: {
-       payment_status: "paid",
-     },
-   });
+  const handleMarkPaid = async (bookingId) => {
+    await updateBooking.mutateAsync({
+      id: bookingId,
+      data: {
+        payment_status: "paid",
+      },
+    });
 
-   toast.success("Payment marked as paid");
- };
+    toast.success("Payment marked as paid");
+  };
 
   // Document handlers
   const handleAadhaarChange = (e, setter, data) => {
@@ -607,6 +700,37 @@ export default function Bookings() {
     }
   };
 
+  const handleExtraDocsChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (extraDocPreviews.length + files.length > 5) {
+      toast.error("Maximum 5 extra documents allowed");
+      return;
+    }
+
+    setExtraDocFiles((prev) => [...prev, ...files]);
+
+    const newPreviews = files.map((file) => URL.createObjectURL(file));
+    setExtraDocPreviews((prev) => [...prev, ...newPreviews]);
+  };
+
+  const removeExtraDoc = (index) => {
+    const itemToRemove = extraDocPreviews[index];
+
+    // Logic to sync binary files and previews
+    if (
+      typeof itemToRemove === "string" &&
+      (itemToRemove.startsWith("data:") || itemToRemove.startsWith("blob:"))
+    ) {
+      const binaryIndex = extraDocPreviews
+        .slice(0, index)
+        .filter(
+          (src) => src.startsWith("data:") || src.startsWith("blob:"),
+        ).length;
+      setExtraDocFiles((prev) => prev.filter((_, i) => i !== binaryIndex));
+    }
+
+    setExtraDocPreviews((prev) => prev.filter((_, i) => i !== index));
+  };
   // Create booking
   // const handleCreateBooking = async (e) => {
   //   if (e) e.preventDefault();
@@ -684,6 +808,165 @@ export default function Bookings() {
   //   }
   // };
 
+  // const handleCreateBooking = async (e) => {
+  //   if (e) e.preventDefault();
+
+  //   try {
+  //     setUploading(true);
+
+  //     let finalCustomerId = formData.customer_id;
+  //     let finalCustomerName = formData.customer_name;
+  //     let finalCustomerPhone = formData.customer_phone;
+  //     let finalCustomerLocation = formData.customer_location;
+
+  //     // 1️⃣ CREATE CUSTOMER FIRST (IF NEW)
+  //     // if (formData.is_new_customer) {
+  //     //   console.log("🚀 Step 1: Creating new customer...");
+  //     //   const customerFormData = new FormData();
+
+  //     //   // Backend 'Customer' model expects: name, phone, email
+  //     //   customerFormData.append("name", formData.customer_name);
+  //     //   customerFormData.append("phone", formData.customer_phone);
+  //     //   customerFormData.append("email", formData.customer_email || "");
+
+  //     //   // IMPORTANT: Backend expects 'aadhaar_image' and 'license_image'
+  //     //   // Your console shows they are stored in 'aadhaar_file' and 'license_file'
+  //     //   if (!formData.aadhaar_file || !formData.license_file) {
+  //     //     toast.error("Aadhaar and License files are required");
+  //     //     setUploading(false);
+  //     //     return;
+  //     //   }
+
+  //     //   customerFormData.append("aadhaar_image", formData.aadhaar_file);
+  //     //   customerFormData.append("license_image", formData.license_file);
+
+  //     //   // Call the customer creation API
+  //     //   const savedCustomer =
+  //     //     await createCustomer.mutateAsync(customerFormData);
+
+  //     //   // Get the ID generated by MongoDB
+  //     //   finalCustomerId = savedCustomer._id;
+  //     //   console.log("✅ Customer Created with ID:", finalCustomerId);
+  //     // }
+
+  //     // ... inside handleCreateBooking
+  //     if (formData.is_new_customer) {
+  //       console.log("🚀 Step 1: Creating new customer...");
+  //       const customerFormData = new FormData();
+
+  //       customerFormData.append("name", formData.customer_name);
+  //       customerFormData.append("phone", formData.customer_phone);
+  //       customerFormData.append("email", formData.customer_email || "");
+  //       customerFormData.append("address", formData.customer_location);
+
+  //       // Legacy Aadhaar and License
+  //       if (!formData.aadhaar_file || !formData.license_file) {
+  //         toast.error("Aadhaar and License files are required");
+  //         setUploading(false);
+  //         return;
+  //       }
+  //       customerFormData.append("aadhaar_image", formData.aadhaar_file);
+  //       customerFormData.append("license_image", formData.license_file);
+
+  //       // ADD THESE LINES (The Fix)
+  //       submissionData.append(
+  //         "provider_partner_share",
+  //         formData.provider_partner_share || 0,
+  //       );
+  //       submissionData.append(
+  //         "reference_partner_share",
+  //         formData.reference_partner_share || 0,
+  //       );
+
+  //       // --- NEW CHANGE START ---
+  //       // Append the 5 extra documents (from your new state)
+  //       if (extraDocFiles && extraDocFiles.length > 0) {
+  //         extraDocFiles.forEach((file) => {
+  //           customerFormData.append("extra_documents", file);
+  //         });
+  //       }
+  //       // --- NEW CHANGE END ---
+
+  //       const savedCustomer =
+  //         await createCustomer.mutateAsync(customerFormData);
+  //       finalCustomerId = savedCustomer._id;
+  //       console.log("✅ Customer Created with ID:", finalCustomerId);
+  //     }
+  //     // ... rest of the booking logic
+  //     else {
+  //       // EXISTING CUSTOMER LOGIC
+  //       const selectedCust = customers?.find(
+  //         (c) => c._id === formData.customer_id,
+  //       );
+  //       if (!selectedCust) {
+  //         toast.error("Please select a customer");
+  //         setUploading(false);
+  //         return;
+  //       }
+  //       finalCustomerId = selectedCust._id;
+  //       finalCustomerName = selectedCust.name;
+  //       finalCustomerPhone = selectedCust.phone;
+  //     }
+
+  //     // 2️⃣ PREPARE BOOKING DATA
+  //     console.log("🚀 Step 2: Preparing booking data...");
+  //     const bookingData = new FormData();
+  //     const selectedBike = bikes?.find((b) => b._id === formData.bike_id);
+
+  //     // Mandatory Booking Fields
+  //     bookingData.append("customer_id", finalCustomerId);
+  //     bookingData.append("bike_id", formData.bike_id);
+  //     bookingData.append("customer_name", finalCustomerName);
+  //     bookingData.append("contact_number", finalCustomerPhone);
+
+  //     // bookingData.append("start_datetime", formData.start_datetime);
+  //     // bookingData.append("end_datetime", formData.end_datetime);
+
+  //     // Existing code in handleCreateBooking
+  //     bookingData.append(
+  //       "start_datetime",
+  //       new Date(formData.start_datetime).toISOString(),
+  //     );
+  //     bookingData.append(
+  //       "end_datetime",
+  //       new Date(formData.end_datetime).toISOString(),
+  //     );
+  //     bookingData.append(
+  //       "vehicle_make_model",
+  //       selectedBike ? `${selectedBike.brand} ${selectedBike.model}` : "Bike",
+  //     );
+  //     bookingData.append(
+  //       "account_manager",
+  //       formData.account_manager || "Admin",
+  //     );
+  //     bookingData.append("rental_type", formData.rental_type || "daily");
+  //     bookingData.append("lead_source", formData.lead_source || "other");
+  //     bookingData.append("source_name", formData.source_name || "Direct");
+  //     bookingData.append("deposit_amount", formData.deposit_amount || 0);
+  //     bookingData.append("total_amount", formData.total_amount || 0);
+  //     bookingData.append("payment_method", "cash");
+
+  //     // Optional Booking Fields
+  //     bookingData.append("fuel_quantity", formData.fuel_quantity || 0);
+  //     bookingData.append("notes", formData.notes || "");
+  //     bookingData.append("remarks", formData.remarks || "");
+
+  //     // 3️⃣ SEND TO BACKEND
+  //     await adminCreateMutation.mutateAsync(bookingData);
+
+  //     setIsOpen(false);
+  //     resetForm();
+  //     toast.success("Booking completed successfully!");
+  //   } catch (err) {
+  //     console.error("❌ Process Error:", err);
+  //     toast.error(
+  //       err.response?.data?.message || "Failed to create customer or booking",
+  //     );
+  //   } finally {
+  //     setUploading(false);
+  //   }
+  // };
+
   const handleCreateBooking = async (e) => {
     if (e) e.preventDefault();
 
@@ -693,37 +976,35 @@ export default function Bookings() {
       let finalCustomerId = formData.customer_id;
       let finalCustomerName = formData.customer_name;
       let finalCustomerPhone = formData.customer_phone;
+      let finalCustomerLocation = formData.customer_location;
 
-      // 1️⃣ CREATE CUSTOMER FIRST (IF NEW)
+      // 1️⃣ CUSTOMER LOGIC
       if (formData.is_new_customer) {
-        console.log("🚀 Step 1: Creating new customer...");
         const customerFormData = new FormData();
-
-        // Backend 'Customer' model expects: name, phone, email
         customerFormData.append("name", formData.customer_name);
         customerFormData.append("phone", formData.customer_phone);
         customerFormData.append("email", formData.customer_email || "");
+        customerFormData.append("address", formData.customer_location);
 
-        // IMPORTANT: Backend expects 'aadhaar_image' and 'license_image'
-        // Your console shows they are stored in 'aadhaar_file' and 'license_file'
         if (!formData.aadhaar_file || !formData.license_file) {
           toast.error("Aadhaar and License files are required");
           setUploading(false);
           return;
         }
-
         customerFormData.append("aadhaar_image", formData.aadhaar_file);
         customerFormData.append("license_image", formData.license_file);
 
-        // Call the customer creation API
+        // Handle extra documents
+        if (typeof extraDocFiles !== "undefined" && extraDocFiles.length > 0) {
+          extraDocFiles.forEach((file) => {
+            customerFormData.append("extra_documents", file);
+          });
+        }
+
         const savedCustomer =
           await createCustomer.mutateAsync(customerFormData);
-
-        // Get the ID generated by MongoDB
         finalCustomerId = savedCustomer._id;
-        console.log("✅ Customer Created with ID:", finalCustomerId);
       } else {
-        // EXISTING CUSTOMER LOGIC
         const selectedCust = customers?.find(
           (c) => c._id === formData.customer_id,
         );
@@ -735,21 +1016,28 @@ export default function Bookings() {
         finalCustomerId = selectedCust._id;
         finalCustomerName = selectedCust.name;
         finalCustomerPhone = selectedCust.phone;
+        finalCustomerLocation = selectedCust.address;
       }
 
       // 2️⃣ PREPARE BOOKING DATA
-      console.log("🚀 Step 2: Preparing booking data...");
       const bookingData = new FormData();
       const selectedBike = bikes?.find((b) => b._id === formData.bike_id);
 
-      // Mandatory Booking Fields
       bookingData.append("customer_id", finalCustomerId);
       bookingData.append("bike_id", formData.bike_id);
       bookingData.append("customer_name", finalCustomerName);
       bookingData.append("contact_number", finalCustomerPhone);
+      bookingData.append("customer_location", finalCustomerLocation);
+      // Convert dates to ISO
+      bookingData.append(
+        "start_datetime",
+        new Date(formData.start_datetime).toISOString(),
+      );
+      bookingData.append(
+        "end_datetime",
+        new Date(formData.end_datetime).toISOString(),
+      );
 
-      bookingData.append("start_datetime", formData.start_datetime);
-      bookingData.append("end_datetime", formData.end_datetime);
       bookingData.append(
         "vehicle_make_model",
         selectedBike ? `${selectedBike.brand} ${selectedBike.model}` : "Bike",
@@ -763,9 +1051,19 @@ export default function Bookings() {
       bookingData.append("source_name", formData.source_name || "Direct");
       bookingData.append("deposit_amount", formData.deposit_amount || 0);
       bookingData.append("total_amount", formData.total_amount || 0);
-      bookingData.append("payment_method", "cash");
 
-      // Optional Booking Fields
+      // ✅ FIX 1: Append shares to 'bookingData' (not submissionData)
+      // ✅ FIX 2: Move these outside the 'is_new_customer' block so they work for all bookings
+      bookingData.append(
+        "provider_partner_share",
+        formData.provider_partner_share || 0,
+      );
+      bookingData.append(
+        "reference_partner_share",
+        formData.reference_partner_share || 0,
+      );
+
+      bookingData.append("payment_method", "cash");
       bookingData.append("fuel_quantity", formData.fuel_quantity || 0);
       bookingData.append("notes", formData.notes || "");
       bookingData.append("remarks", formData.remarks || "");
@@ -778,24 +1076,53 @@ export default function Bookings() {
       toast.success("Booking completed successfully!");
     } catch (err) {
       console.error("❌ Process Error:", err);
-      toast.error(
-        err.response?.data?.message || "Failed to create customer or booking",
-      );
+      toast.error(err.response?.data?.message || "Failed to create booking");
     } finally {
       setUploading(false);
     }
   };
 
+  // Add this helper function to Booking.jsx
+  const toLocalISO = (dateStr) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+
+    // Use Intl to format the date specifically for India
+    // This produces a string like "2026-04-21 19:30"
+    const options = {
+      timeZone: "Asia/Kolkata",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    };
+
+    const formatter = new Intl.DateTimeFormat("en-IN", options);
+    const parts = formatter.formatToParts(date);
+    const f = (type) => parts.find((p) => p.type === type).value;
+
+    // Return in YYYY-MM-DDTHH:mm format required by <input type="datetime-local">
+    return `${f("year")}-${f("month")}-${f("day")}T${f("hour")}:${f("minute")}`;
+  };
+
+  // When setting your formData for editing:
+
   // Edit booking (full form)
   const handleEditBooking = (booking) => {
     setEditingBooking(booking._id);
 
-    
     setEditFormData({
       bike_id: booking.bike_id,
-      customer_id: booking.customer_id,
-      start_datetime: booking.start_datetime.slice(0, 16),
-      end_datetime: booking.end_datetime.slice(0, 16),
+      // To this:
+      customer_id: booking.customers?._id || booking.customer_id,
+      // customer_id: booking.customer_id,
+      // start_datetime: booking.start_datetime.slice(0, 16),
+      // end_datetime: booking.end_datetime.slice(0, 16),
+
+      start_datetime: toLocalISO(booking.start_datetime),
+      end_datetime: toLocalISO(booking.end_datetime),
       notes: booking.notes || "",
       customer_name: booking.customer_name || booking.customers?.name || "",
       customer_phone: booking.contact_number || booking.customers?.phone || "",
@@ -818,67 +1145,155 @@ export default function Bookings() {
       payment_method: booking.payment_method || "cash",
     });
   };
-const handleSaveEdit = async () => {
-  if (!editingBooking) return;
 
-  const start = new Date(editFormData.start_datetime);
-  const end = new Date(editFormData.end_datetime);
+  // const handleSaveEdit = async () => {
+  //   if (!editingBooking) return;
 
-  if (end.getTime() <= start.getTime()) {
-    toast.error("End time must be after start time");
-    return;
-  }
+  //   const start = new Date(editFormData.start_datetime);
+  //   const end = new Date(editFormData.end_datetime);
 
-  if (!editFormData.total_amount || Number(editFormData.total_amount) <= 0) {
-    toast.error("Please enter rental amount");
-    return;
-  }
+  //   if (end.getTime() <= start.getTime()) {
+  //     toast.error("End time must be after start time");
+  //     return;
+  //   }
 
-  try {
-    await updateBooking.mutateAsync({
-      id: editingBooking,
-      data: {
-        start_datetime: start.toISOString(),
-        end_datetime: end.toISOString(),
-        total_amount: Number(editFormData.total_amount),
+  //   if (!editFormData.total_amount || Number(editFormData.total_amount) <= 0) {
+  //     toast.error("Please enter rental amount");
+  //     return;
+  //   }
 
-        customer_name: editFormData.customer_name || undefined,
-        contact_number: editFormData.customer_phone || undefined,
-        customer_email: editFormData.customer_email || undefined,
-        customer_location: editFormData.customer_location || undefined,
+  //   try {
+  //     await updateBooking.mutateAsync({
+  //       id: editingBooking,
+  //       data: {
+  //         start_datetime: start.toISOString(),
+  //         end_datetime: end.toISOString(),
+  //         total_amount: Number(editFormData.total_amount),
 
-        lead_source: editFormData.lead_source,
-        source_name: editFormData.source_name || undefined,
-        rental_type: editFormData.rental_type,
+  //         customer_name: editFormData.customer_name || undefined,
+  //         contact_number: editFormData.customer_phone || undefined,
+  //         customer_email: editFormData.customer_email || undefined,
+  //         customer_location: editFormData.customer_location || undefined,
 
-        deposit_amount: Number(editFormData.deposit_amount) || 0,
+  //         lead_source: editFormData.lead_source,
+  //         source_name: editFormData.source_name || undefined,
+  //         rental_type: editFormData.rental_type,
 
-        reference_partner_share:
-          Number(editFormData.reference_partner_share) || undefined,
+  //         deposit_amount: Number(editFormData.deposit_amount) || 0,
 
-        provider_partner_share:
-          Number(editFormData.provider_partner_share) || undefined,
+  //         reference_partner_share:
+  //           Number(editFormData.reference_partner_share) || undefined,
 
-        fuel_quantity: Number(editFormData.fuel_quantity) || undefined,
+  //         provider_partner_share:
+  //           Number(editFormData.provider_partner_share) || undefined,
 
-        account_manager: editFormData.account_manager || undefined,
+  //         fuel_quantity: Number(editFormData.fuel_quantity) || undefined,
 
-        remarks: editFormData.remarks || undefined,
-        notes: editFormData.notes || undefined,
+  //         account_manager: editFormData.account_manager || undefined,
 
-        payment_method: editFormData.payment_method,
-      },
-    });
+  //         remarks: editFormData.remarks || undefined,
+  //         notes: editFormData.notes || undefined,
 
-    setEditingBooking(null);
-    toast.success("Booking updated successfully");
-  } catch (err) {
-    console.error(err);
-    toast.error("Failed to update booking");
-  }
-};
+  //         payment_method: editFormData.payment_method,
+  //       },
+  //     });
 
-  
+  //     await updateCustomerMutation({
+  //       id: editingBooking,
+  //       data: {
+
+  //         name: editFormData.customer_name || undefined,
+  //         phone: editFormData.customer_phone || undefined,
+  //         email: editFormData.customer_email || undefined,
+
+  //       }
+  //     }
+  //     )
+  //     setEditingBooking(null);
+  //     toast.success("Booking updated successfully");
+  //   } catch (err) {
+  //     console.error(err);
+  //     toast.error("Failed to update booking");
+  //   }
+  // };
+
+  const handleSaveEdit = async () => {
+    if (!editingBooking) return;
+
+    const start = new Date(editFormData.start_datetime);
+    const end = new Date(editFormData.end_datetime);
+
+    if (end.getTime() <= start.getTime()) {
+      toast.error("End time must be after start time");
+      return;
+    }
+
+    if (!editFormData.total_amount || Number(editFormData.total_amount) <= 0) {
+      toast.error("Please enter rental amount");
+      return;
+    }
+
+    try {
+      // 1️⃣ UPDATE BOOKING
+      await updateBooking.mutateAsync({
+        id: editingBooking,
+        data: {
+          start_datetime: start.toISOString(),
+          end_datetime: end.toISOString(),
+          total_amount: Number(editFormData.total_amount),
+
+          customer_name: editFormData.customer_name || undefined,
+          contact_number: editFormData.customer_phone || undefined,
+          customer_email: editFormData.customer_email || undefined,
+          customer_location: editFormData.customer_location || undefined,
+
+          lead_source: editFormData.lead_source,
+          source_name: editFormData.source_name || undefined,
+          rental_type: editFormData.rental_type,
+
+          deposit_amount: Number(editFormData.deposit_amount) || 0,
+
+          reference_partner_share:
+            Number(editFormData.reference_partner_share) || undefined,
+
+          provider_partner_share:
+            Number(editFormData.provider_partner_share) || undefined,
+
+          fuel_quantity: Number(editFormData.fuel_quantity) || undefined,
+
+          account_manager: editFormData.account_manager || undefined,
+
+          remarks: editFormData.remarks || undefined,
+          notes: editFormData.notes || undefined,
+
+          payment_method: editFormData.payment_method,
+        },
+      });
+
+      // 2️⃣ UPDATE CUSTOMER — fix: use customer_id, build FormData
+      if (editFormData.customer_id) {
+        const customerFormData = new FormData();
+        customerFormData.append("name", editFormData.customer_name || "");
+        customerFormData.append("phone", editFormData.customer_phone || "");
+        customerFormData.append("email", editFormData.customer_email || "");
+        customerFormData.append(
+          "address",
+          editFormData.customer_location || "",
+        );
+
+        await updateCustomerMutation.mutateAsync({
+          id: editFormData.customer_id, // ✅ customer's _id, NOT booking id
+          formData: customerFormData, // ✅ FormData, not plain object
+        });
+      }
+
+      setEditingBooking(null);
+      toast.success("Booking & customer updated successfully");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update booking");
+    }
+  };
 
   // Render form fields (shared between create & edit)
   const renderFormFields = (data, setData, isEdit = false) => (
@@ -1052,6 +1467,7 @@ const handleSaveEdit = async () => {
           </div>
         )}
       </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Rental Amount (₹) *</Label>
@@ -1327,6 +1743,39 @@ const handleSaveEdit = async () => {
                   onChange={(e) => handleLicenseChange(e, setData, data)}
                   className="hidden"
                 />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Additional Documents (Max 5)</Label>
+              <Input
+                type="file"
+                multiple
+                accept="image/*"
+                onChange={handleExtraDocsChange}
+                className="cursor-pointer"
+              />
+
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                {extraDocPreviews.map((src, index) => (
+                  <div
+                    key={index}
+                    className="relative group aspect-square rounded-md overflow-hidden border"
+                  >
+                    <img
+                      src={src}
+                      alt="doc"
+                      className="w-full h-full object-cover"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeExtraDoc(index)}
+                      className="absolute top-1 right-1 bg-destructive text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -1792,6 +2241,53 @@ const handleSaveEdit = async () => {
         </DialogContent>
       </Dialog>
 
+      {/* <Dialog
+        open={!!assignDialog}
+        onOpenChange={(open) => !open && setAssignDialog(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Bike className="w-5 h-5 text-primary" /> Assign Scooter
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Select an available scooter to assign to this booking.
+            </p>
+            <div className="space-y-2">
+              <Label>Available Scooters</Label>
+              <Select value={assignBikeId} onValueChange={setAssignBikeId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose a scooter" />
+                </SelectTrigger>
+                <SelectContent>
+                  {bikes
+                    ?.filter((b) => b.status === "available")
+                    .map((bike) => (
+                      <SelectItem key={bike._id} value={bike._id}>
+                        {bike.model} — {bike.number_plate} ({bike.cc}cc)
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignDialog(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleAssignBike}
+              className="gradient-sunset"
+              disabled={!assignBikeId || assignBikeMutation.isPending}
+            >
+              {assignBikeMutation.isPending ? "Assigning..." : "Assign Scooter"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog> */}
+
       <div className="flex flex-col gap-4">
         <div className="relative w-full max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -1926,13 +2422,34 @@ const handleSaveEdit = async () => {
                             </div>
                           </div>
 
-                          <div className="space-y-0.5">
+                          {/* <div className="space-y-0.5">
                             <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
                               Bike
                             </p>
                             <p className="font-semibold text-foreground text-sm truncate">
                               {booking.bikes?.model || "—"}
                             </p>
+                            <p className="text-xs text-muted-foreground">
+                              {booking.bikes?.number_plate}
+                            </p>
+                          </div> */}
+
+                          <div className="space-y-0.5">
+                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                              Bike
+                            </p>
+
+                            {booking.booking_type === "scooter_pool" &&
+                            !booking.bike_id ? (
+                              <p className="font-semibold text-primary text-sm">
+                                Scooter Pool
+                              </p>
+                            ) : (
+                              <p className="font-semibold text-foreground text-sm truncate">
+                                {booking.bikes?.model || "—"}
+                              </p>
+                            )}
+
                             <p className="text-xs text-muted-foreground">
                               {booking.bikes?.number_plate}
                             </p>
@@ -1962,6 +2479,44 @@ const handleSaveEdit = async () => {
                               </span>
                             </div>
                           </div>
+
+                          {/* <div className="space-y-0.5">
+                            <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                              Duration
+                            </p>
+                            <div className="flex items-center gap-1.5 text-xs text-foreground">
+                              <Calendar className="w-3 h-3 shrink-0 text-primary" />
+                              <span>
+                                {new Date(
+                                  booking.start_datetime,
+                                ).toLocaleString("en-IN", {
+                                  day: "2-digit",
+                                  month: "short",
+                                  hour: "numeric",
+                                  minute: "2-digit",
+                                  hour12: true,
+                                  timeZone: "UTC", // This is the magic line
+                                })}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Clock className="w-3 h-3 shrink-0" />
+                              <span>
+                                to{" "}
+                                {new Date(booking.end_datetime).toLocaleString(
+                                  "en-IN",
+                                  {
+                                    day: "2-digit",
+                                    month: "short",
+                                    hour: "numeric",
+                                    minute: "2-digit",
+                                    hour12: true,
+                                    timeZone: "UTC",
+                                  },
+                                )}
+                              </span>
+                            </div>
+                          </div> */}
 
                           <div className="space-y-0.5">
                             <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
@@ -2022,6 +2577,21 @@ const handleSaveEdit = async () => {
                                 <CreditCard className="w-4 h-4 mr-1" /> Paid
                               </Button>
                             )}
+
+                          {/* {booking.booking_type === "scooter_pool" &&
+                            !booking.bike_id && (
+                              <Button
+                                size="sm"
+                                variant="default"
+                                onClick={() => setAssignDialog(booking._id)}
+                                className="gradient-sunset"
+                              >
+                                <Bike className="w-4 h-4 mr-1" />
+                                <span className="hidden sm:inline">
+                                  Assign Scooter
+                                </span>
+                              </Button>
+                            )} */}
 
                           {statusActions[booking.status]?.map((action) => (
                             <Button

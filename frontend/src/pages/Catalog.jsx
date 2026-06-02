@@ -105,7 +105,7 @@ const BikeCard = ({
           <motion.img
             src={bike.image_url}
             alt={bike.model}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-fill"
             whileHover={{ scale: 1.1 }}
             transition={{ duration: 0.4 }}
           />
@@ -524,6 +524,76 @@ const Catalog = () => {
               initial="hidden"
               animate="visible"
             >
+              {/* Scooter Pool Card - always shown first */}
+              {/* <motion.div
+                key="scooter-pool"
+                variants={cardVariants}
+                className="group relative bg-card border-2 border-primary/30 rounded-2xl overflow-hidden cursor-pointer"
+                whileHover={{
+                  y: -8,
+                  boxShadow: "0 20px 40px -15px hsl(var(--primary) / 0.35)",
+                  borderColor: "hsl(var(--primary) / 0.6)",
+                }}
+                onClick={() => {
+                  const params = new URLSearchParams();
+                  if (urlStart) params.set("start", urlStart);
+                  if (urlEnd) params.set("end", urlEnd);
+                  if (selectedArea !== "all") params.set("area", selectedArea);
+                  navigate(`/book/scooter-pool?${params.toString()}`);
+                }}
+              >
+                <div className="relative h-48 bg-gradient-to-br from-primary/15 via-primary/5 to-secondary/10 flex items-center justify-center">
+                  <Bike className="w-20 h-20 text-primary/60" />
+                  <Badge className="absolute top-3 right-3 bg-primary text-primary-foreground">
+                    Best Value
+                  </Badge>
+                  <Badge
+                    variant="secondary"
+                    className="absolute bottom-3 left-3 bg-card/90 backdrop-blur-sm"
+                  >
+                    <Zap className="w-3 h-3 mr-1 text-primary" />
+                    Any available scooter
+                  </Badge>
+                </div>
+
+                <div className="p-5">
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="text-lg font-semibold text-primary group-hover:text-primary/80 transition-colors">
+                      Book Any Scooter
+                    </h3>
+                    <span className="text-xs bg-muted px-2 py-1 rounded-full text-muted-foreground">
+                      Pool
+                    </span>
+                  </div>
+
+                  <p className="text-sm text-muted-foreground mb-4 flex items-center gap-2">
+                    <Shield className="w-3 h-3 text-green-500" />
+                    We assign the best available scooter
+                  </p>
+
+                  <div className="flex items-center justify-between mb-4 p-3 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-1 text-primary">
+                      <IndianRupee className="w-4 h-4" />
+                      <span className="font-bold text-lg">2</span>
+                      <span className="text-xs text-muted-foreground">/hr</span>
+                    </div>
+                    <div className="w-px h-6 bg-border" />
+                    <div className="flex items-center gap-1 text-secondary">
+                      <IndianRupee className="w-4 h-4" />
+                      <span className="font-bold text-lg">500</span>
+                      <span className="text-xs text-muted-foreground">
+                        /day
+                      </span>
+                    </div>
+                  </div>
+
+                  <Button className="w-full gradient-sunset text-primary-foreground font-medium">
+                    Book Now
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </div>
+              </motion.div> */}
+
               <AnimatePresence initial={false}>
                 {filteredBikes.map((bike) => (
                   <BikeCard

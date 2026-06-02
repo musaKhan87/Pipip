@@ -1,4 +1,5 @@
 import { Phone, MessageCircle, Instagram, Heart } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -71,7 +72,56 @@ const Footer = () => {
           </div>
 
           {/* Contact Info */}
-          <div>
+          {/* <div>
+            <h4 className="text-lg font-semibold text-foreground mb-4">
+              Contact Info
+            </h4>
+            <ul className="space-y-3 text-muted-foreground">
+              <li className="flex items-center gap-2">
+                <Phone className="w-4 h-4 text-primary" />
+                <a
+                  href="tel:9967406205"
+                  className="hover:text-primary transition-colors"
+                >
+                  9967406205
+                </a>
+              </li>
+              <li className="flex items-center gap-2">
+                <Instagram className="w-4 h-4 text-primary" />
+                <a
+                  href="https://instagram.com/pipip_mumbai"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-primary transition-colors"
+                >
+                  @pipip_mumbai
+                </a>
+              </li>
+              <li>Bhendi Bazar, Mumbai - 400003</li>
+            </ul>
+          </div> */}
+
+             <div>
+            <h4 className="text-lg font-semibold text-foreground mb-4">
+              Policies
+            </h4>
+            <ul className="space-y-2 mb-6">
+              {[
+                { label: "Privacy Policy", to: "/privacy-policy" },
+                { label: "Terms & Conditions", to: "/terms-and-conditions" },
+                { label: "Refund Policy", to: "/refund-policy" },
+              ].map((link) => (
+                <li key={link.to}>
+                  <Link
+                    to={link.to}
+                    className="text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+
             <h4 className="text-lg font-semibold text-foreground mb-4">
               Contact Info
             </h4>
@@ -99,6 +149,7 @@ const Footer = () => {
               <li>Bhendi Bazar, Mumbai - 400003</li>
             </ul>
           </div>
+       
         </div>
 
         {/* Divider */}

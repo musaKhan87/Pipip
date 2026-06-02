@@ -107,6 +107,7 @@ const verifyWebhook = async (req, res) => {
       {
         payment_status: "paid",
         booking_source: "online", // <--- ADDED THIS LINE
+        
       },
     );
     console.log("Payment successful for:", order_id);
@@ -119,7 +120,7 @@ const verifyWebhook = async (req, res) => {
 const verifyPayment = async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { customerId, bikeId, startDate, endDate, amount } = req.query;
+    const { customerId, bikeId, startDate, endDate, amount, deposit_amount } = req.query;
 
     // 1. Fetch order status from Cashfree
     const response = await cashfree.get(`/orders/${orderId}`);
@@ -136,12 +137,16 @@ const verifyPayment = async (req, res) => {
           bike_id: bikeId,
           start_datetime: startDate,
           end_datetime: endDate,
-          total_amount: amount,
+          // total_amount: amount,
+          // CRITICAL: Convert strings to Numbers for database accuracy
+          total_amount: Number(amount),
+          deposit_amount: Number(deposit_amount) || 0,
           payment_status: "paid",
           payment_method: "online",
           payment_order_id: orderId,
           status: "confirmed",
           booking_source: "online", // <--- ADDED THIS LINE
+         
         });
       }
 

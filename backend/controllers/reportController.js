@@ -11,6 +11,141 @@ const {
   subDays,
 } = require("date-fns");
 
+
+// 1. General Dashboard Stats
+// exports.getBookingStats = async (req, res) => {
+//   try {
+//     const { period = "all" } = req.query;
+//     let query = {};
+
+//     if (period !== "all") {
+//       let start, end;
+//       const now = new Date();
+//       if (period === "today") {
+//         start = startOfDay(now);
+//         end = endOfDay(now);
+//       } else if (period === "week") {
+//         start = startOfWeek(now);
+//         end = endOfWeek(now);
+//       } else if (period === "month") {
+//         start = startOfMonth(now);
+//         end = endOfMonth(now);
+//       }
+//       query.createdAt = { $gte: start, $lte: end };
+//     }
+
+//     const bookings = await Booking.find(query);
+
+//     const stats = {
+//       total_bookings: bookings.length,
+//       pending_bookings: bookings.filter((b) => b.status === "pending").length,
+//       active_bookings: bookings.filter((b) => ["active", "confirmed"].includes(b.status)).length,
+//       completed_bookings: bookings.filter((b) => b.status === "completed").length,
+//       cancelled_bookings: bookings.filter((b) => b.status === "cancelled").length,
+//       // MODIFIED: Subtracting deposit_amount from total_amount
+//       total_revenue: bookings
+//         .filter((b) => b.status === "completed")
+//         .reduce((sum, b) => sum + ((b.total_amount || 0) - (b.deposit_amount || 0)), 0),
+//     };
+
+//     res.json(stats);
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
+// // 2. Revenue per Bike (Top Performers)
+// exports.getBikeRevenueReport = async (req, res) => {
+//   try {
+//     const { fromDate, toDate } = req.query;
+//     let matchQuery = { status: "completed" };
+
+//     if (fromDate || toDate) {
+//       matchQuery.start_datetime = {};
+//       if (fromDate) matchQuery.start_datetime.$gte = new Date(fromDate);
+//       if (toDate) matchQuery.start_datetime.$lte = new Date(toDate);
+//     }
+
+//     const report = await Booking.aggregate([
+//       { $match: matchQuery },
+//       {
+//         $lookup: {
+//           from: "bikes",
+//           localField: "bike_id",
+//           foreignField: "_id",
+//           as: "bike_info",
+//         },
+//       },
+//       { $unwind: "$bike_info" },
+//       {
+//         $group: {
+//           _id: "$bike_id",
+//           model: { $first: "$bike_info.model" },
+//           number_plate: { $first: "$bike_info.number_plate" },
+//           total_bookings: { $sum: 1 },
+//           // MODIFIED: Subtracting deposit using $subtract within the $sum
+//           total_revenue: { 
+//             $sum: { $subtract: ["$total_amount", { $ifNull: ["$deposit_amount", 0] }] } 
+//           },
+//           total_hours: {
+//             $sum: {
+//               $divide: [
+//                 { $subtract: ["$end_datetime", "$start_datetime"] },
+//                 3600000,
+//               ],
+//             },
+//           },
+//         },
+//       },
+//       { $sort: { total_revenue: -1 } },
+//     ]);
+
+//     res.json(report);
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
+// // 4. Daily Revenue Trend (for Recharts)
+// exports.getDailyRevenueReport = async (req, res) => {
+//   try {
+//     const days = parseInt(req.query.days) || 30;
+//     const fromDate = subDays(new Date(), days);
+
+//     const report = await Booking.aggregate([
+//       {
+//         $match: {
+//           createdAt: { $gte: fromDate },
+//           status: "completed",
+//         },
+//       },
+//       {
+//         $group: {
+//           _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+//           bookings_count: { $sum: 1 },
+//           // MODIFIED: Subtracting deposit for the daily trend
+//           revenue: { 
+//             $sum: { $subtract: ["$total_amount", { $ifNull: ["$deposit_amount", 0] }] } 
+//           },
+//         },
+//       },
+//       { $sort: { _id: 1 } },
+//       {
+//         $project: {
+//           _id: 0,
+//           date: "$_id",
+//           bookings_count: 1,
+//           revenue: 1,
+//         },
+//       },
+//     ]);
+
+//     res.json(report);
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
 // 1. General Dashboard Stats
 exports.getBookingStats = async (req, res) => {
   try {
@@ -169,24 +304,61 @@ exports.getDailyRevenueReport = async (req, res) => {
 
 
 // Get bookings ending in the next 60 minutes
+// exports.getEndingSoon = async (req, res) => {
+//   try {
+//     const now = new Date();
+//     const oneHourLater = new Date(now.getTime() + 24* 60 * 60 * 1000);
+
+//     // Find active bookings where end time is between NOW and 1 HOUR from now
+//     const bookings = await Booking.find({
+//       status: "active",
+//       end_datetime: {
+//         $gte: now,
+//         $lte: oneHourLater,
+//       },
+//     })
+//       .populate("bike_id", "model number_plate image_url")
+//       .populate("customer_id", "name phone")
+//       .sort({ end_datetime: 1 });
+
+//     // Calculate minutes remaining on the server for accuracy
+//     const results = bookings.map((booking) => {
+//       const remaining = Math.round(
+//         (new Date(booking.end_datetime).getTime() - now.getTime()) /
+//           (60 * 1000),
+//       );
+
+//       return {
+//         ...booking._doc,
+//         minutesRemaining: remaining > 0 ? remaining : 0,
+//       };
+//     });
+
+//     res.json(results);
+//   } catch (error) {
+//     res.status(500).json({ error: error.message });
+//   }
+// };
+
 exports.getEndingSoon = async (req, res) => {
   try {
     const now = new Date();
-    const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+    // 24 hours from now
+    const oneDayLater = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-    // Find active bookings where end time is between NOW and 1 HOUR from now
+    // Find active bookings ending within the next 24 hours
     const bookings = await Booking.find({
       status: "active",
       end_datetime: {
         $gte: now,
-        $lte: oneHourLater,
+        $lte: oneDayLater,
       },
     })
       .populate("bike_id", "model number_plate image_url")
       .populate("customer_id", "name phone")
       .sort({ end_datetime: 1 });
 
-    // Calculate minutes remaining on the server for accuracy
+    // Calculate minutes remaining
     const results = bookings.map((booking) => {
       const remaining = Math.round(
         (new Date(booking.end_datetime).getTime() - now.getTime()) /

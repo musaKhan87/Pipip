@@ -71,6 +71,9 @@ const initialFormData = {
   last_battery_changed: "",
   last_tyre_change: "",
   gps_installed_date: "",
+  // is_grouped: false, // New
+  // group_name: "", // New
+  display_priority: 0, // New
   extra_images: [],
 };
 
@@ -293,10 +296,11 @@ export default function Bikes() {
       bike_name: bike.bike_name || "",
       bike_colour: bike.bike_colour || "",
       bike_owner: bike.bike_owner || "",
-      
+
       bike_expenses: bike.bike_expenses || 0,
       total_km_run: bike.total_km_run || 0,
 
+     
 
       insurance_end_date: toInputDate(bike.insurance_end_date),
       puc_end_date: toInputDate(bike.puc_end_date),
@@ -414,6 +418,84 @@ export default function Bikes() {
                     />
                   </div>
                 </div>
+
+                {/* --- NEW GROUPING SECTION --- */}
+                {/* <div className="space-y-3 pt-2">
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border pb-1">
+                    Catalog Display Settings
+                  </h3>
+
+                  <div className="flex items-center gap-4 py-2">
+                    <Label htmlFor="is_grouped" className="cursor-pointer">
+                      Group this bike in a Fleet Card?
+                    </Label>
+                    <input
+                      id="is_grouped"
+                      type="checkbox"
+                      checked={formData.is_grouped}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          is_grouped: e.target.checked,
+                        })
+                      }
+                      className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="group_name">
+                        Group Name (e.g. "Activa Fleet")
+                      </Label>
+                      <Input
+                        id="group_name"
+                        disabled={!formData.is_grouped}
+                        value={formData.group_name}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            group_name: e.target.value,
+                          })
+                        }
+                        placeholder={
+                          formData.is_grouped
+                            ? "Enter unique group name"
+                            : "Enable grouping first"
+                        }
+                        className="bg-input border-border"
+                      />
+                      <p className="text-[10px] text-muted-foreground">
+                        Bikes with the same Group Name & Area appear as one
+                        card.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="display_priority">Display Priority</Label>
+                      <Input
+                        id="display_priority"
+                        type="number"
+                        value={formData.display_priority}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            display_priority: parseInt(e.target.value) || 0,
+                          })
+                        }
+                        placeholder="0"
+                        className="bg-input border-border"
+                      />
+                      <p className="text-[10px] text-muted-foreground">
+                        Lower numbers (e.g., 0 or 1) show at the top of the
+                        catalog.
+                      </p>
+                    </div>
+                  </div>
+                </div> */}
+                {/* --- END NEW SECTION --- */}
+
+                
                 {/* Section: Basic Details */}
                 <div className="space-y-3">
                   <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border pb-1">

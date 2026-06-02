@@ -136,11 +136,29 @@ const bookingSchema = new mongoose.Schema(
       required: true,
     },
 
+    // bike_id: {
+    //   type: mongoose.Schema.Types.ObjectId,
+    //   ref: "Bike",
+    //   required: true,
+    // },
+
     bike_id: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Bike",
-      required: true,
+      default: null, // ← was required: true, remove that
     },
+
+    // booking_type: {
+    //   type: String,
+    //   enum: ["regular", "scooter_pool"],
+    //   default: "regular",
+    // },
+
+    // area_id: {
+    //   type: mongoose.Schema.Types.ObjectId,
+    //   ref: "Area",
+    //   default: null,
+    // },
 
     // Customer Info (❌ removed required)
     customer_name: { type: String },
@@ -244,7 +262,7 @@ const bookingSchema = new mongoose.Schema(
     payment_screenshot: {
       type: String, // URL of uploaded image
     },
-    
+
     notes: String,
 
     updated_by_admin: {

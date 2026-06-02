@@ -2,8 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
 import { toast } from "sonner";
 
-// const API_URL = "http://localhost:5000/api/customers";
-const API_URL = " https://pipip-backend.onrender.com/api/customers";
+const API_URL = "http://localhost:5000/api/customers";
+// const API_URL = " https://pipip-backend.onrender.com/api/customers";
 
 
 /* =========================
@@ -73,24 +73,50 @@ export function useCreateCustomer() {
 /* =========================
    UPDATE CUSTOMER (ADMIN)
 ========================= */
+// export function useUpdateCustomer() {
+//   const queryClient = useQueryClient();
+
+//   return useMutation({
+//     mutationFn: async ({ id, ...updates }) => {
+//       const { data } = await axios.put(`${API_URL}/${id}`, updates);
+//       return data;
+//     },
+//     onSuccess: () => {
+//       queryClient.invalidateQueries({ queryKey: ["customers"] });
+//       toast.success("Customer updated successfully");
+//     },
+//     onError: (error) => {
+//       toast.error(error.response?.data?.message || "Failed to update customer");
+//     },
+//   });
+// }
+
+
+/* =========================
+   UPDATE CUSTOMER (ADMIN)
+========================= */
 export function useUpdateCustomer() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }) => {
-      const { data } = await axios.put(`${API_URL}/${id}`, updates);
+    mutationFn: async ({ id, formData }) => {
+      // formData must be an instance of new FormData()
+      const { data } = await axios.put(`${API_URL}/${id}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
-      toast.success("Customer updated successfully");
+      toast.success("Customer details updated!");
     },
     onError: (error) => {
       toast.error(error.response?.data?.message || "Failed to update customer");
     },
   });
 }
-
 /* =========================
    DELETE CUSTOMER (ADMIN)
 ========================= */

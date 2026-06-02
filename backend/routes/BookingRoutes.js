@@ -7,6 +7,7 @@ const {
   updateBookingStatus,
   deleteBooking,
   adminCreateBooking,
+  assignBikeToBooking,
 } = require("../controllers/Bookingcontroller");
 const upload = require("../middelwares/upload");
 const router = express.Router();
@@ -26,5 +27,7 @@ router.put("/:id", upload.single("payment_screenshot"), updateBooking);
 router.patch("/:id/status", updateBookingStatus);
 
 router.delete("/:id", deleteBooking);
+
+// router.put("/:id/assign-bike", assignBikeToBooking);
 
 module.exports = router;

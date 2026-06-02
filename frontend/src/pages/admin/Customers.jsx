@@ -479,7 +479,7 @@ export default function Customers() {
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="documents" className="mt-4 space-y-3">
+                  {/* <TabsContent value="documents" className="mt-4 space-y-3">
                     <DocumentImageViewer
                       url={viewingCustomer.aadhaar_image_url}
                       label="Aadhaar Card"
@@ -494,6 +494,54 @@ export default function Customers() {
                         <p className="text-gray-500 text-center py-4">
                           No documents uploaded
                         </p>
+                      )}
+                  </TabsContent> */}
+
+                  <TabsContent value="documents" className="mt-4 space-y-3">
+                    {/* Existing Primary Documents */}
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                        Primary IDs
+                      </h4>
+                      <DocumentImageViewer
+                        url={viewingCustomer.aadhaar_image_url}
+                        label="Aadhaar Card"
+                      />
+                      <DocumentImageViewer
+                        url={viewingCustomer.license_image_url}
+                        label="Driving License"
+                      />
+                    </div>
+
+                    {/* New Additional Documents Section */}
+                    {viewingCustomer.extra_documents?.length > 0 && (
+                      <div className="space-y-3 pt-4 border-t border-border">
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          Additional Documents
+                        </h4>
+                        <div className="grid grid-cols-1 gap-2">
+                          {viewingCustomer.extra_documents.map((url, index) => (
+                            <DocumentImageViewer
+                              key={index}
+                              url={url}
+                              label={`Document ${index + 1}`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Empty State Logic */}
+                    {!viewingCustomer.aadhaar_image_url &&
+                      !viewingCustomer.license_image_url &&
+                      (!viewingCustomer.extra_documents ||
+                        viewingCustomer.extra_documents.length === 0) && (
+                        <div className="flex flex-col items-center justify-center py-8 text-center bg-muted/30 rounded-lg border border-dashed">
+                          <FileImage className="w-10 h-10 text-muted-foreground mb-2 opacity-20" />
+                          <p className="text-sm text-muted-foreground">
+                            No documents uploaded for this customer
+                          </p>
+                        </div>
                       )}
                   </TabsContent>
 

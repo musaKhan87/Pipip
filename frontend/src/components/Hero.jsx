@@ -19,6 +19,23 @@ const Hero = () => {
   const [endTime, setEndTime] = useState("12:00"); // Added Time State
   const [isAreaOpen, setIsAreaOpen] = useState(false);
 
+  // --- MIN/MAX DATE LOGIC START ---
+  // Helper to get local YYYY-MM-DD string
+  const getLocalDateString = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const today = new Date();
+  const minDate = getLocalDateString(today); // "2023-10-27"
+
+  const sevenDaysLater = new Date();
+  sevenDaysLater.setDate(today.getDate() + 7);
+  const maxDate = getLocalDateString(sevenDaysLater); // 7 days from now
+  // --- MIN/MAX DATE LOGIC END ---
+
   const handleSearch = () => {
     if (!selectedArea) {
       toast.error("Please select a pickup location");
@@ -100,15 +117,29 @@ const Hero = () => {
           {/* 2. Removed 'max-w-2xl' from here to let it breathe, added lg:w-1/2 */}
           <div className="w-full lg:w-1/2">
             {/* Logo */}
-            <motion.h1
+            {/* <motion.h1
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
               className="font-display text-6xl md:text-8xl text-gradient-sunset mb-6"
             >
               Pipip
-            </motion.h1>
+            </motion.h1> */}
 
+            {/* Logo */}
+            <motion.h1
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="font-display flex flex-col leading-none mb-6"
+            >
+              <span className="text-6xl md:text-8xl text-gradient-sunset">
+                Pipip
+              </span>
+              <span className="text-xl md:text-2xl tracking-[0.2em] uppercase text-muted-foreground mt-1 ml-1">
+                Services
+              </span>
+            </motion.h1>
             {/* Tagline */}
             <motion.h2
               initial={{ opacity: 0, y: 30 }}
@@ -276,14 +307,15 @@ const Hero = () => {
               </div>
 
               {/* Date/Time Grid */}
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                {/* Apply these classes to ALL 4 inputs below */}
+              {/* <div className="grid grid-cols-2 gap-4 mb-6">
                 {[
                   {
                     label: "Start Date",
                     val: startDate,
                     set: setStartDate,
                     type: "date",
+                    min: minDate, // Applied Min Date
+                    max: maxDate, // Applied Max Date
                   },
                   {
                     label: "End Date",
@@ -314,8 +346,60 @@ const Hero = () => {
                         type={field.type}
                         value={field.val}
                         onChange={(e) => field.set(e.target.value)}
+                        min={field.min}
+                        max={field.max}
                         className="w-full bg-white/10 border border-white/20 rounded-xl pl-10 pr-4 py-3 text-white text-sm focus:outline-none focus:border-primary 
                          [&::-webkit-calendar-picker-indicator]:invert"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div> */}
+
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                {[
+                  {
+                    label: "Start Date",
+                    val: startDate,
+                    set: setStartDate,
+                    type: "date",
+                    min: minDate, // Applied Min Date
+                    max: maxDate, // Applied Max Date
+                  },
+                  {
+                    label: "End Date",
+                    val: endDate,
+                    set: setEndDate,
+                    type: "date",
+                
+                  },
+                  {
+                    label: "Start Time",
+                    val: startTime,
+                    set: setStartTime,
+                    type: "time",
+                  },
+                  {
+                    label: "End Time",
+                    val: endTime,
+                    set: setEndTime,
+                    type: "time",
+                  },
+                ].map((field, i) => (
+                  <div key={i}>
+                    <label className="text-sm text-gray-300 mb-2 block">
+                      {field.label}
+                    </label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-primary" />
+                      <input
+                        type={field.type}
+                        value={field.val}
+                        min={field.min} // Standard HTML attribute
+                        max={field.max} // Standard HTML attribute
+                        onChange={(e) => field.set(e.target.value)}
+                        className="w-full bg-white/10 border border-white/20 rounded-xl pl-10 pr-4 py-3 text-white text-sm focus:outline-none focus:border-primary 
+                          [&::-webkit-calendar-picker-indicator]:invert"
                       />
                     </div>
                   </div>
@@ -342,6 +426,6 @@ const Hero = () => {
       </div>
     </section>
   );
-};
+};;
 
 export default Hero;

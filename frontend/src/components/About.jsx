@@ -6,6 +6,7 @@ import {
   MapPin,
   CreditCard,
   Headphones,
+  Building2,
 } from "lucide-react";
 
 const About = () => {
@@ -71,6 +72,32 @@ const About = () => {
           </p>
         </motion.div>
 
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          whileInView={{ opacity: 1, scale: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+          className="max-w-3xl mx-auto mb-20 p-8 rounded-3xl bg-primary/5 border border-primary/10 flex flex-col md:flex-row items-center gap-6 text-center md:text-left"
+        >
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+            <Building2 className="w-8 h-8 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-foreground mb-1">
+              Part of Pipip Services
+            </h3>
+            <p className="text-muted-foreground leading-relaxed">
+              Pipip is a flagship brand proudly operated under
+              <span className="text-foreground font-medium">
+                {" "}
+                Pipip Services
+              </span>
+              . We are committed to delivering premium mobility solutions and
+              exceptional customer service across the Mumbai region.
+            </p>
+          </div>
+        </motion.div>
+
         {/* Features Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
           {features.map((feature, index) => (
@@ -91,7 +118,7 @@ const About = () => {
               <p className="text-muted-foreground">{feature.description}</p>
             </motion.div>
           ))}
-        </div>        
+        </div>
       </div>
     </section>
   );

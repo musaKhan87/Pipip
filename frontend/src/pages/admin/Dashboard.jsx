@@ -83,7 +83,7 @@ export default function Dashboard() {
       </div>
 
       {/* Expiring Bookings Alert - Live Notification Logic */}
-      <AnimatePresence>
+      {/* <AnimatePresence>
         {expiringBookings && expiringBookings.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: -20, height: 0 }}
@@ -187,6 +187,117 @@ export default function Dashboard() {
                     View all {expiringBookings.length} expiring bookings
                   </Button>
                 )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence> */}
+
+      
+
+      {/* Expiring Bookings Alert - Live Notification Logic */}
+      <AnimatePresence>
+        {expiringBookings && expiringBookings.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, height: 0 }}
+            animate={{ opacity: 1, y: 0, height: "auto" }}
+            exit={{ opacity: 0, y: -20, height: 0 }}
+            className="overflow-hidden"
+          >
+            <Card className="bg-orange-950/20 shadow-lg">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-orange-700 dark:text-orange-400">
+                  <motion.div
+                    animate={{ rotate: [0, 10, -10, 0] }}
+                    transition={{
+                      duration: 0.5,
+                      repeat: Infinity,
+                      repeatDelay: 2,
+                    }}
+                  >
+                    <Bell className="w-5 h-5" />
+                  </motion.div>
+                  Bookings Ending Soon
+                  <Badge className="bg-orange-500 text-white ml-2">
+                    {expiringBookings.length}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {/* Added max-height and overflow to handle "all" bikes without breaking layout */}
+                <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                  {expiringBookings.map((booking, index) => {
+                    // Helper to format large minute values
+                    const hours = Math.floor(booking.minutesRemaining / 60);
+                    const mins = booking.minutesRemaining % 60;
+                    const timeDisplay =
+                      hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+
+                    return (
+                      <motion.div
+                        key={booking._id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className={`flex items-center justify-between p-3 rounded-lg border shadow-sm ${
+                          booking.minutesRemaining <= 30
+                            ? "bg-red-900/20 border-red-200"
+                            : "bg-gray-800 border-orange-100"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`p-2 rounded-lg ${
+                              booking.minutesRemaining <= 30
+                                ? "bg-red-200"
+                                : "bg-orange-200"
+                            }`}
+                          >
+                            <Timer
+                              className={`w-4 h-4 ${
+                                booking.minutesRemaining <= 30
+                                  ? "text-red-600"
+                                  : "text-orange-600"
+                              }`}
+                            />
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">
+                              {booking.bike_id?.model} —{" "}
+                              {booking.bike_id?.number_plate}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Customer: {booking.customer_id?.name}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <p
+                              className={`font-bold ${
+                                booking.minutesRemaining <= 30
+                                  ? "text-red-600"
+                                  : "text-orange-600"
+                              }`}
+                            >
+                              {timeDisplay} left
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Ends:{" "}
+                              {format(new Date(booking.end_datetime), "h:mm a")}
+                            </p>
+                          </div>
+                          <a
+                            href={`tel:${booking.customer_id?.phone}`}
+                            className="p-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-colors shadow-md"
+                          >
+                            <Phone className="w-4 h-4" />
+                          </a>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
               </CardContent>
             </Card>
           </motion.div>

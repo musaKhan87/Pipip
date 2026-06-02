@@ -88,14 +88,117 @@ export default function BookBike() {
   // Inside BookBike function
   const [confirmedBookingId, setConfirmedBookingId] = useState("");
 
+  // Add these to your state at the top of the component
+  const [existingCustomer, setExistingCustomer] = useState(null);
+  const [isSearching, setIsSearching] = useState(false);
+
   const location = useLocation();
   const scrollRef = useRef(null); // Create a reference to the scrollable area
+
+  const SECURITY_DEPOSIT = 2000;
+
+  // 1. Helper to get ISO string rounded to the top of the hour
+  const getRoundedISO = (date) => {
+    const d = new Date(date);
+    d.setMinutes(0, 0, 0); // Force minutes and seconds to 00:00
+    // Adjust for timezone offset to get local 'YYYY-MM-DDTHH:mm'
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    return new Date(d - tzOffset).toISOString().slice(0, 16);
+  };
+
+  const now = new Date();
+  const minDateTime = getRoundedISO(now);
+
+  const sevenDaysLater = new Date();
+  sevenDaysLater.setDate(now.getDate() + 7);
+  const maxDateTime = getRoundedISO(sevenDaysLater);
 
   // Add this alongside your other useEffects
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [step, bookingComplete]);
 
+  // Add this function to check for existing customers
+  // const handlePhoneLookup = async (phone) => {
+  //   if (phone.length < 10) return;
+
+  //   setIsSearching(true);
+  //   try {
+  //     const res = await fetch(
+  //       `https://pipip-backend.onrender.com/api/customers?search=${phone}`,
+  //     );
+  //     const data = await res.json();
+
+  //     if (data.length > 0) {
+  //       const match = data[0];
+  //       setExistingCustomer(match);
+
+  //       // FIX: Ensure 'phone' is preserved in the state update
+  //       setCustomerData({
+  //         ...customerData, // Keep existing state (including the phone being typed)
+  //         name: match.name,
+  //         phone: phone, // Explicitly set the phone number again
+  //         email: match.email || "",
+  //         address: match.address || "",
+  //         id_proof_number: match.id_proof_number || "",
+  //       });
+  //       toast.success("Welcome back! Your details have been loaded.");
+  //     } else {
+  //       setExistingCustomer(null);
+  //     }
+  //   } catch (err) {
+  //     console.error("Lookup failed", err);
+  //   } finally {
+  //     setIsSearching(false);
+  //   }
+  // };
+
+  const handlePhoneLookup = async (phone) => {
+    // 1. If user deletes, cuts, or changes the number to anything less than 10 digits
+    if (phone.length < 10) {
+      // If we currently have data loaded, clear it all out
+      if (existingCustomer || customerData.name !== "") {
+        setExistingCustomer(null);
+        setCustomerData({
+          ...initialCustomerData,
+          phone: phone, // Keep the digits the user is currently typing
+        });
+      }
+      return;
+    }
+
+    // 2. Only run the search if exactly 10 digits are present
+    setIsSearching(true);
+    try {
+      const res = await fetch(
+        `https://pipip-backend.onrender.com/api/customers?search=${phone}`,
+      );
+      const data = await res.json();
+
+      if (data.length > 0) {
+        const match = data[0];
+        setExistingCustomer(match);
+
+        setCustomerData({
+          ...customerData,
+          name: match.name,
+          phone: phone,
+          email: match.email || "",
+          address: match.address || "",
+          id_proof_number: match.id_proof_number || "",
+        });
+        toast.success("Welcome back! Your details have been loaded.");
+      } else {
+        // No match found - ensure we treat them as a new customer
+        setExistingCustomer(null);
+      }
+    } catch (err) {
+      console.error("Lookup failed", err);
+      setExistingCustomer(null);
+    } finally {
+      setIsSearching(false);
+    }
+  };
   // --- 1. ONLINE PAYMENT FLOW ---
   const handleOnlinePayment = async () => {
     try {
@@ -103,11 +206,25 @@ export default function BookBike() {
       setPaymentFailed(false);
 
       // 1. Create/Get the Customer
-      const formData = new FormData();
-      Object.entries(customerData).forEach(([key, value]) => {
-        if (value !== null) formData.append(key, value);
-      });
-      const customer = await createCustomer.mutateAsync(formData);
+
+      let customerId;
+
+      // logic to prevent duplicate: use existing ID or create new
+      if (existingCustomer) {
+        customerId = existingCustomer._id;
+      } else {
+        const formData = new FormData();
+        Object.entries(customerData).forEach(([key, value]) => {
+          if (value !== null) formData.append(key, value);
+        });
+        const customer = await createCustomer.mutateAsync(formData);
+        customerId = customer._id;
+      }
+      // const formData = new FormData();
+      // Object.entries(customerData).forEach(([key, value]) => {
+      //   if (value !== null) formData.append(key, value);
+      // });
+      // const customer = await createCustomer.mutateAsync(formData);
 
       // 2. Create the Order on your Backend
       const res = await fetch(
@@ -117,7 +234,8 @@ export default function BookBike() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            amount: calculatePrice(),
+            amount: calculatePrice(true),
+
             customerName: customerData.name,
             customerEmail: customerData.email || "test@email.com",
             customerPhone: customerData.phone,
@@ -145,7 +263,7 @@ export default function BookBike() {
         setIsSubmitting(false);
       } else {
         // Modal closed successfully, verify with your backend
-        await checkStatusAndConfirm(data.orderId, customer._id);
+        await checkStatusAndConfirm(data.orderId, customerId);
       }
     } catch (err) {
       console.error("Payment Error:", err);
@@ -162,7 +280,9 @@ export default function BookBike() {
         bikeId: bike._id,
         startDate: new Date(startDate).toISOString(),
         endDate: new Date(endDate).toISOString(),
-        amount: calculatePrice(),
+        // amount: calculatePrice(true),
+        amount: calculatePrice(false), // Base rental price
+        deposit_amount: SECURITY_DEPOSIT,
       }).toString();
 
       const verifyRes = await fetch(
@@ -184,25 +304,43 @@ export default function BookBike() {
       setIsSubmitting(false);
     }
   };
+
   // --- 2. OFFLINE (CASH) BOOKING FLOW ---
   const handleCashBooking = async () => {
     try {
       setIsSubmitting(true);
 
       // Create Customer
-      const formData = new FormData();
-      Object.entries(customerData).forEach(([key, value]) => {
-        if (value !== null) formData.append(key, value);
-      });
-      const customer = await createCustomer.mutateAsync(formData);
+      // const formData = new FormData();
+      // Object.entries(customerData).forEach(([key, value]) => {
+      //   if (value !== null) formData.append(key, value);
+      // });
+      // const customer = await createCustomer.mutateAsync(formData);
+
+      let customerId;
+
+      // logic to prevent duplicate: use existing ID or create new
+      if (existingCustomer) {
+        customerId = existingCustomer._id;
+      } else {
+        const formData = new FormData();
+        Object.entries(customerData).forEach(([key, value]) => {
+          if (value !== null) formData.append(key, value);
+        });
+        const customer = await createCustomer.mutateAsync(formData);
+        customerId = customer._id;
+      }
 
       // Submit Booking with 'cash' method
       const newBooking = await createBooking.mutateAsync({
         bike_id: bike._id,
-        customer_id: customer._id,
+        // customer_id: customer._id,
+        customer_id: customerId, // Use determined ID
         start_datetime: new Date(startDate).toISOString(),
         end_datetime: new Date(endDate).toISOString(),
-        total_amount: calculatePrice(),
+        // total_amount: calculatePrice(true),
+        total_amount: calculatePrice(false), // Base rental price
+        deposit_amount: SECURITY_DEPOSIT,
         payment_method: "cash", // FIX: Sets method to cash in database
         payment_status: "pending",
         status: "pending",
@@ -294,7 +432,24 @@ export default function BookBike() {
     return areas.find((a) => a._id === areaId)?.name || "Mumbai";
   };
 
-  const calculatePrice = () => {
+  // const calculatePrice = () => {
+  //   if (!bike || !startDate || !endDate) return 0;
+
+  //   const start = new Date(startDate);
+  //   const end = new Date(endDate);
+  //   const totalHours = Math.max(1, differenceInHours(end, start));
+
+  //   const days = Math.floor(totalHours / 24);
+  //   const remainingHours = totalHours % 24;
+
+  //   return (
+  //     days * Number(bike.price_per_day) +
+  //     remainingHours * Number(bike.price_per_hour)
+  //   );
+  // };
+
+
+  const calculatePrice = (includeDeposit = false) => {
     if (!bike || !startDate || !endDate) return 0;
 
     const start = new Date(startDate);
@@ -304,10 +459,11 @@ export default function BookBike() {
     const days = Math.floor(totalHours / 24);
     const remainingHours = totalHours % 24;
 
-    return (
+    const rentalPrice =
       days * Number(bike.price_per_day) +
-      remainingHours * Number(bike.price_per_hour)
-    );
+      remainingHours * Number(bike.price_per_hour);
+
+    return includeDeposit ? rentalPrice + SECURITY_DEPOSIT : rentalPrice;
   };
 
   const roundToHour = (dateTimeStr) => {
@@ -342,6 +498,25 @@ export default function BookBike() {
   /* =========================
      CUSTOMER STEP
   ========================= */
+  // const handleCustomerSubmit = (e) => {
+  //   e.preventDefault();
+
+  //   if (!customerData.name || !customerData.phone) {
+  //     toast.error("Please fill in name and phone number");
+  //     return;
+  //   }
+
+  //   if (!customerData.aadhaar_image && !customerData.license_image) {
+  //     toast.error("Please upload at least one ID proof");
+  //     return;
+  //   }
+
+  //   setStep(2);
+  // };
+
+  /* =========================
+   CUSTOMER STEP
+========================= */
   const handleCustomerSubmit = (e) => {
     e.preventDefault();
 
@@ -350,14 +525,16 @@ export default function BookBike() {
       return;
     }
 
-    if (!customerData.aadhaar_image && !customerData.license_image) {
-      toast.error("Please upload at least one ID proof");
-      return;
+    // UPDATED LOGIC: Only require images if it's a NEW customer
+    if (!existingCustomer) {
+      if (!customerData.aadhaar_image && !customerData.license_image) {
+        toast.error("Please upload at least one ID proof");
+        return;
+      }
     }
 
-    setStep(2);
+    setStep(2); // Now this will be reached for existing customers
   };
-
   /* =========================
      BOOKING SUBMIT
   ========================= */
@@ -381,7 +558,7 @@ export default function BookBike() {
         customer_id: customer._id,
         start_datetime: new Date(startDate).toISOString(),
         end_datetime: new Date(endDate).toISOString(),
-        total_amount: calculatePrice(),
+        total_amount: calculatePrice(true),
         notes: notes || undefined,
         booking_source: "online",
         status: "pending",
@@ -476,250 +653,6 @@ export default function BookBike() {
       </div>
     );
   }
-
-  //   if (bookingComplete) {
-  //     return (
-  //       <>
-  //         <Header />
-  //         <main className="min-h-screen bg-background pt-52 pb-12 ">
-  //           <div className="container mx-auto px-4 max-w-lg">
-  //             <motion.div
-  //               initial={{ opacity: 0, scale: 0.9 }}
-  //               animate={{ opacity: 1, scale: 1 }}
-  //               className="bg-card border border-border rounded-2xl p-8 text-center"
-  //             >
-  //               <motion.div
-  //                 initial={{ scale: 0 }}
-  //                 animate={{ scale: 1 }}
-  //                 transition={{ delay: 0.2, type: "spring" }}
-  //                 className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6"
-  //               >
-  //                 <Check className="w-10 h-10 text-green-500" />
-  //               </motion.div>
-  //               <h1 className="text-2xl font-bold text-foreground mb-2">
-  //                 Booking Submitted!
-  //               </h1>
-  //               <p className="text-muted-foreground mb-6">
-  //                 Your booking request for{" "}
-  //                 <span className="text-primary">{bike.model}</span> has been
-  //                 received. Our team will contact you shortly to confirm.
-  //               </p>
-  //               <div className="space-y-2 text-sm text-muted-foreground mb-6">
-  //                 <p>
-  //                   📞 We'll call you at:{" "}
-  //                   <span className="text-foreground">{customerData.phone}</span>
-  //                 </p>
-  //                 <p>
-  //                   📅 Pickup:{" "}
-  //                   <span className="text-foreground">
-  //                     {format(new Date(startDate), "PPp")}
-  //                   </span>
-  //                 </p>
-  //                 <p>
-  //                   📅 Return:{" "}
-  //                   <span className="text-foreground">
-  //                     {format(new Date(endDate), "PPp")}
-  //                   </span>
-  //                 </p>
-  //               </div>
-  //               <Button
-  //                 onClick={() => navigate("/")}
-  //                 className="gradient-sunset text-primary-foreground"
-  //               >
-  //                 Back to Home
-  //               </Button>
-  //             </motion.div>
-  //           </div>
-  //         </main>
-  //         <Footer />
-  //       </>
-  //     );
-  //   }
-
-  // if (bookingComplete) {
-  //   return (
-  //     <>
-  //       <Header />
-  //       <main className="min-h-screen pt-32 pb-20 bg-background/50">
-  //         <div className="container mx-auto px-4 max-w-lg">
-  //           <motion.div
-  //             initial={{ opacity: 0, y: 40 }}
-  //             animate={{ opacity: 1, y: 0 }}
-  //             className="relative bg-card rounded-[3rem] shadow-golden overflow-hidden print:shadow-none print:border-none print:rounded-none"
-  //             id="receipt-content"
-  //           >
-  //             {/* --- WEB ONLY HEADER (Sunset Gradient) --- */}
-  //             <div className="gradient-sunset p-10 text-center text-white relative overflow-hidden print:hidden">
-  //               <div
-  //                 className="absolute inset-0 opacity-10 pointer-events-none"
-  //                 style={{
-  //                   backgroundImage:
-  //                     "radial-gradient(circle at 2px 2px, white 1px, transparent 0)",
-  //                   backgroundSize: "24px 24px",
-  //                 }}
-  //               />
-  //               <div className="relative z-10">
-  //                 <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-md border border-white/30">
-  //                   <CheckCircle2 className="w-8 h-8 text-white drop-shadow-md" />
-  //                 </div>
-  //                 <h2 className="text-2xl font-display font-black tracking-tight uppercase">
-  //                   Booking Confirmed
-  //                 </h2>
-  //                 <p className="text-white/80 text-[10px] font-medium mt-1 tracking-[0.3em] uppercase">
-  //                   Official Receipt
-  //                 </p>
-  //               </div>
-  //             </div>
-
-  //             {/* --- PRINT ONLY HEADER (Formal Black & White) --- */}
-  //             <div className="hidden print:flex justify-between items-start p-8 border-b-4 border-black mb-6 ">
-  //               <div>
-  //                 <h1 className="text-3xl font-black tracking-tighter text-white">
-  //                   PIPIP RENTALS
-  //                 </h1>
-  //                 <p className="text-xs text-white italic">
-  //                   Premium Bike Rental Service
-  //                 </p>
-  //               </div>
-  //               <div className="text-right">
-  //                 <h2 className="text-xl font-bold text-white uppercase">
-  //                   Tax Invoice
-  //                 </h2>
-  //                 <p className="text-xs text-white font-mono">
-  //                   #{confirmedBookingId}
-  //                 </p>
-  //               </div>
-  //             </div>
-
-  //             <CardContent className="p-8 md:p-12 space-y-8 bg-card print:bg-white">
-  //               {/* Reference Details */}
-  //               <div className="grid grid-cols-2 gap-6 border-b border-dashed border-border pb-6 print:border-black">
-  //                 <div>
-  //                   <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest print:text-black">
-  //                     Order ID
-  //                   </span>
-  //                   <p className="text-sm font-mono font-bold text-primary print:text-black">
-  //                     #{confirmedBookingId}
-  //                   </p>
-  //                 </div>
-  //                 <div className="text-right">
-  //                   <span className="text-[10px] font-black text-muted-foreground uppercase tracking-widest print:text-black">
-  //                     Issue Date
-  //                   </span>
-  //                   <p className="text-sm font-bold text-foreground print:text-black">
-  //                     {format(new Date(), "dd MMM yyyy")}
-  //                   </p>
-  //                 </div>
-  //               </div>
-
-  //               {/* Customer & Vehicle Details */}
-  //               <div className="space-y-4">
-  //                 <h4 className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] mb-4 print:text-black">
-  //                   Summary Details
-  //                 </h4>
-
-  //                 <div className="flex justify-between items-center text-sm">
-  //                   <span className="text-muted-foreground print:text-black">
-  //                     Customer Name
-  //                   </span>
-  //                   <span className="font-bold print:text-black">
-  //                     {customerData.name}
-  //                   </span>
-  //                 </div>
-
-  //                 <div className="flex justify-between items-center text-sm">
-  //                   <span className="text-muted-foreground print:text-black">
-  //                     Contact Number
-  //                   </span>
-  //                   <span className="font-bold print:text-black">
-  //                     +91 {customerData.phone}
-  //                   </span>
-  //                 </div>
-
-  //                 <div className="flex justify-between items-center text-sm">
-  //                   <span className="text-muted-foreground print:text-black">
-  //                     Bike Model
-  //                   </span>
-  //                   <span className="font-bold print:text-black">
-  //                     {bike?.model}
-  //                   </span>
-  //                 </div>
-
-  //                 <div className="flex justify-between items-start text-sm">
-  //                   <span className="text-muted-foreground print:text-black">
-  //                     Rental Period
-  //                   </span>
-  //                   <div className="text-right">
-  //                     <p className="font-bold print:text-black">
-  //                       {format(new Date(startDate), "MMM dd, hh:mm a")}
-  //                     </p>
-  //                     <p className="text-[10px] text-muted-foreground print:text-black">
-  //                       to {format(new Date(endDate), "MMM dd, hh:mm a")}
-  //                     </p>
-  //                   </div>
-  //                 </div>
-  //               </div>
-
-  //               {/* Amount Box */}
-  //               <div className="bg-primary/5 p-8 rounded-[2rem] border border-primary/10 print:bg-white print:border-2 print:border-black print:rounded-none">
-  //                 <div className="flex justify-between items-end">
-  //                   <div>
-  //                     <span className="text-[10px] font-black uppercase text-primary print:text-black tracking-widest">
-  //                       Total Amount Paid
-  //                     </span>
-  //                     <p className="text-5xl font-display font-black text-foreground print:text-black">
-  //                       ₹{calculatePrice()}
-  //                     </p>
-  //                   </div>
-  //                   <div className="text-right">
-  //                     <span
-  //                       className={`text-[10px] font-black px-3 py-1 rounded-full uppercase border ${paymentMethod === "online" ? "bg-green-500 text-white border-none" : "bg-orange-500 text-white border-none"} print:bg-white print:text-black print:border-black print:border`}
-  //                     >
-  //                       {paymentMethod === "online"
-  //                         ? "Verified PAID"
-  //                         : "Pay on Pickup"}
-  //                     </span>
-  //                   </div>
-  //                 </div>
-  //               </div>
-
-  //               {/* Fine Print */}
-  //               <div className="bg-muted p-4 rounded-xl text-[10px] text-muted-foreground leading-relaxed border border-border print:border-black print:text-black print:bg-white">
-  //                 <p className="font-bold mb-1 text-foreground print:text-black uppercase tracking-tighter">
-  //                   Instructions:
-  //                 </p>
-  //                 <p>• Carry original Aadhar & DL. No digital copies.</p>
-  //                 <p>• Helmets provided based on availability.</p>
-  //                 <p>
-  //                   • Vehicle should be returned at{" "}
-  //                   {customerData.area || "the pickup point"}.
-  //                 </p>
-  //               </div>
-
-  //               {/* Web Only Buttons */}
-  //               <div className="flex flex-col sm:flex-row gap-4 pt-4 print:hidden">
-  //                 <Button
-  //                   variant="outline"
-  //                   onClick={() => window.print()}
-  //                   className="flex-1 h-14 rounded-2xl border-2 border-border font-bold hover:bg-muted"
-  //                 >
-  //                   <FileText className="w-5 h-5 mr-2" /> Download Bill
-  //                 </Button>
-  //                 <Button
-  //                   onClick={() => navigate("/")}
-  //                   className="flex-1 h-14 rounded-2xl gradient-sunset text-white shadow-golden font-bold"
-  //                 >
-  //                   Done
-  //                 </Button>
-  //               </div>
-  //             </CardContent>
-  //           </motion.div>
-  //         </div>
-  //       </main>
-  //       <Footer />
-  //     </>
-  //   );
-  // }
 
   if (bookingComplete) {
     // 1. Make sure you have installed: npm install html2canvas
@@ -856,14 +789,23 @@ export default function BookBike() {
               </div>
 
               {/* PRINT ONLY HEADER */}
+              {/* PRINT ONLY HEADER */}
               <div className="hidden print:flex justify-between items-start p-8 border-b-4 border-black mb-6">
-                <div>
-                  <h1 className="text-3xl font-black tracking-tighter text-black">
-                    PIPIP RENTALS
-                  </h1>
-                  <p className="text-xs text-black italic">
-                    Premium Bike Rental Service
-                  </p>
+                <div className="flex items-center gap-3">
+                  {/* LOGO ADDED HERE */}
+                  <img
+                    src="/logo.jpeg"
+                    alt="Pipip Logo"
+                    className="w-12 h-12 object-contain print:block"
+                  />
+                  <div>
+                    <h1 className="text-3xl font-black tracking-tighter text-black">
+                      PIPIP RENTALS
+                    </h1>
+                    <p className="text-xs text-black italic">
+                      Premium Bike Rental Service
+                    </p>
+                  </div>
                 </div>
                 <div className="text-right">
                   <h2 className="text-xl font-bold text-black uppercase">
@@ -948,7 +890,7 @@ export default function BookBike() {
                         Total Amount Paid
                       </span>
                       <p className="text-5xl font-display font-black text-foreground print:text-black">
-                        ₹{calculatePrice()}
+                        ₹{calculatePrice(true)}
                       </p>
                     </div>
                     <div className="text-right">
@@ -1000,6 +942,7 @@ export default function BookBike() {
       </>
     );
   }
+
   return (
     <>
       <Header />
@@ -1023,7 +966,7 @@ export default function BookBike() {
                     <img
                       src={bike.image_url}
                       alt={bike.model}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-fill"
                     />
                   ) : (
                     <div className="w-full h-full bg-muted flex items-center justify-center">
@@ -1059,6 +1002,15 @@ export default function BookBike() {
                         ₹{bike.price_per_day}
                       </span>
                     </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">
+                        Security Deposit (Refundable)
+                      </span>
+                      <span className="text-foreground font-medium">
+                        ₹{SECURITY_DEPOSIT}
+                      </span>
+                    </div>
+                    
                     {startDate && endDate && (
                       <>
                         <div className="border-t border-border my-2" />
@@ -1067,7 +1019,7 @@ export default function BookBike() {
                             Estimated Total
                           </span>
                           <span className="text-primary">
-                            ₹{calculatePrice()}
+                            ₹{calculatePrice(true)}
                           </span>
                         </div>
                       </>
@@ -1141,16 +1093,42 @@ export default function BookBike() {
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="phone">Phone Number *</Label>
+                            {/* <Input
+                              id="phone"
+                              value={customerData.phone}
+                              // onChange={(e) =>
+                              //   setCustomerData({
+                              //     ...customerData,
+                              //     phone: e.target.value,
+                              //   })
+                              // }
+
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setCustomerData({
+                                  ...customerData,
+                                  phone: val,
+                                });
+                                if (val.length === 10) handlePhoneLookup(val); // Trigger lookup at 10 digits
+                              }}
+                              placeholder="+91 98765 43210"
+                              className="bg-input border-border"
+                              required
+                            /> */}
                             <Input
                               id="phone"
                               value={customerData.phone}
-                              onChange={(e) =>
-                                setCustomerData({
-                                  ...customerData,
-                                  phone: e.target.value,
-                                })
-                              }
-                              placeholder="+91 98765 43210"
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                // Update state first
+                                setCustomerData((prev) => ({
+                                  ...prev,
+                                  phone: value,
+                                }));
+                                // Trigger the lookup/reset logic
+                                handlePhoneLookup(value);
+                              }}
+                              placeholder="Enter 10 digit phone number"
                               className="bg-input border-border"
                               required
                             />
@@ -1209,48 +1187,49 @@ export default function BookBike() {
                         </div>
 
                         {/* Document Upload */}
-                        <div className="border-t border-border pt-6">
-                          <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-                            <FileText className="w-5 h-5 text-secondary" />
-                            ID Proof Documents
-                          </h3>
-                          <p className="text-sm text-muted-foreground mb-4">
-                            Upload both ID proof (Aadhaar Card and Driving
-                            License)
-                          </p>
+                        {!existingCustomer && (
+                          <div className="border-t border-border pt-6">
+                            <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                              <FileText className="w-5 h-5 text-secondary" />
+                              ID Proof Documents
+                            </h3>
+                            <p className="text-sm text-muted-foreground mb-4">
+                              Upload both ID proof (Aadhaar Card and Driving
+                              License)
+                            </p>
 
-                          <div className="grid md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <Label>Aadhaar Card Photo *</Label>
-                              <Input
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) =>
-                                  setCustomerData({
-                                    ...customerData,
-                                    aadhaar_image: e.target.files[0],
-                                  })
-                                }
-                                required
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Driving License Photo *</Label>
-                              <Input
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) =>
-                                  setCustomerData({
-                                    ...customerData,
-                                    license_image: e.target.files[0],
-                                  })
-                                }
-                                required
-                              />
+                            <div className="grid md:grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label>Aadhaar Card Photo *</Label>
+                                <Input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) =>
+                                    setCustomerData({
+                                      ...customerData,
+                                      aadhaar_image: e.target.files[0],
+                                    })
+                                  }
+                                  required
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Driving License Photo *</Label>
+                                <Input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) =>
+                                    setCustomerData({
+                                      ...customerData,
+                                      license_image: e.target.files[0],
+                                    })
+                                  }
+                                  required
+                                />
+                              </div>
                             </div>
                           </div>
-                        </div>
-
+                        )}
                         {/* Booking Dates */}
                         <div className="border-t border-border pt-6">
                           <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -1263,7 +1242,7 @@ export default function BookBike() {
                               <Label htmlFor="startDate">
                                 Pickup Date & Time *
                               </Label>
-                              <Input
+                              {/* <Input
                                 id="startDate"
                                 type="datetime-local"
                                 value={startDate}
@@ -1272,6 +1251,19 @@ export default function BookBike() {
                                 }
                                 step="3600"
                                 className="bg-input border-border [color-scheme:dark] "
+                                required
+                              /> */}
+                              <Input
+                                id="startDate"
+                                type="datetime-local"
+                                value={startDate}
+                                min={minDateTime} // Now ends in :00
+                                max={maxDateTime} // Now ends in :00
+                                onChange={(e) =>
+                                  handleStartDateChange(e.target.value)
+                                }
+                                step="3600"
+                                className="bg-input border-border [color-scheme:dark]"
                                 required
                               />
                               <p className="text-xs text-muted-foreground">
@@ -1394,16 +1386,61 @@ export default function BookBike() {
                             {format(new Date(endDate), "PPp")}
                           </span>
                         </div>
+
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            Duration
+                          </span>
+                          <span className="text-foreground">
+                            {differenceInHours(
+                              new Date(endDate),
+                              new Date(startDate),
+                            )}{" "}
+                            Hours
+                          </span>
+                        </div>
+                        {/* Pricing Breakdown */}
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            Rental Amount
+                          </span>
+                          <span className="text-foreground font-medium">
+                            ₹{calculatePrice(false)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            Security Deposit (Refundable)
+                          </span>
+                          <span className="text-foreground font-medium">
+                            ₹{SECURITY_DEPOSIT}
+                          </span>
+                        </div>
+
                         <div className="border-t border-border pt-2">
-                          <div className="flex justify-between font-semibold">
-                            <span className="text-foreground">
+                          <div className="flex justify-between items-center">
+                            <span className="font-bold text-foreground">
                               Total Amount
                             </span>
-                            <span className="text-primary text-lg">
-                              ₹{calculatePrice()}
+                            <span className="text-primary text-xl font-black">
+                              ₹{calculatePrice(true)}
                             </span>
                           </div>
                         </div>
+                      </div>
+
+                      <div className="border-t border-border/50 my-2" />
+
+                      {/* Deposit Note */}
+                      <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4 flex gap-3">
+                        <AlertCircle className="w-5 h-5 text-orange-500 shrink-0" />
+                        <p className="text-xs text-orange-200 leading-relaxed">
+                          <strong>Security Deposit Note:</strong> The ₹
+                          {SECURITY_DEPOSIT} deposit is fully refundable upon
+                          rental completion. In case of damages, traffic
+                          violations, or late returns, the corresponding costs
+                          will be deducted from this deposit.
+                        </p>
                       </div>
 
                       <div className="space-y-2">
@@ -1485,7 +1522,7 @@ export default function BookBike() {
                             {isSubmitting
                               ? "Processing..."
                               : paymentMethod === "online"
-                                ? `Pay ₹${calculatePrice()}`
+                                ? `Pay ₹${calculatePrice(true)}`
                                 : "Confirm Booking"}
                           </Button>
                         </div>
