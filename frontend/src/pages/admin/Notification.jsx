@@ -37,7 +37,7 @@ export default function NotificationsCenter() {
 
   // VAPID Public Verification Key
   const VAPID_PUBLIC_KEY =
-    "BElS5N8-G7y1M0dD8vO0EunP2dG2C1XW_eE_m3u_S6w7H8o9N0_v1vO2v3M4_E5n6P7_8d9=";
+    "BMcdPJyGlZNqtAKuUfuzo21doY4i9M2TvRArzooJ3Mfo2-z_3y7Hyay20I_qdxhxrAZ1TJH8H5vf-nTE4mKa3kw";
 
   // Cryptographic string conversion parser
   function urlBase64ToUint8Array(base64String) {
