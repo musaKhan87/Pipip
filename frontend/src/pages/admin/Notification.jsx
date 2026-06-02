@@ -11,8 +11,8 @@ import {
   Layers,
   ArrowRight,
 } from "lucide-react";
-import io from "socket.io-client";
 import axios from "axios";
+import { useOutletContext, useNavigate } from "react-router-dom";
 import { cn } from "../../utils/utils";
 import { Button } from "../../components/ui/Button";
 
@@ -28,27 +28,12 @@ const getBackendUrl = () => {
 
 const BACKEND_URL = getBackendUrl();
 
-// Initialized global socket stream connection layer matching server.js configurations
-const socket = io(BACKEND_URL, {
-  transports: ["websocket", "polling"],
-  secure: BACKEND_URL.startsWith("https"),
-  withCredentials: true,
-});
-
 
 export default function NotificationsCenter() {
+  const { logs, setLogs } = useOutletContext();
   const [deviceLinked, setDeviceLinked] = useState(false);
   const [linkingProcess, setLinkingProcess] = useState(false);
-  const [logs, setLogs] = useState([
-    {
-      id: 1,
-      title: "Pipip Cloud Live",
-      message: "Real-time communication channels active and operational.",
-      type: "system",
-      read: true,
-      time: "Active",
-    },
-  ]);
+  const navigate = useNavigate();
 
   // VAPID Public Verification Key
   const VAPID_PUBLIC_KEY =
@@ -79,30 +64,6 @@ export default function NotificationsCenter() {
         }
       });
     }
-
-    // 2. Catch Live WebSockets events pushed from backend check-out controllers
-    socket.on("newOnlineOrderStream", (incomingAlert) => {
-      // Play a high-priority alert ding chime audio track natively
-      const dynamicChimeSound = new Audio(
-        "https://assets.mixkit.co/active_storage/sfx/2869/2869-600.wav",
-      );
-      dynamicChimeSound
-        .play()
-        .catch(() =>
-          console.log(
-            "Audio play blocked by browser sandbox until click gesture.",
-          ),
-        );
-
-      setLogs((prev) => [
-        { ...incomingAlert, id: Date.now(), read: false, time: "Just Now" },
-        ...prev,
-      ]);
-    });
-
-    return () => {
-      socket.off("newOnlineOrderStream");
-    };
   }, []);
 
   // Handshake to request smartphone OS locks-screen visibility permissions
@@ -250,57 +211,106 @@ export default function NotificationsCenter() {
       {/* ========================================================================= */}
       <div className="space-y-3">
         <AnimatePresence mode="popLayout">
-          {logs.map((log) => (
-            <motion.div
-              key={log.id}
-              layout
-              initial={{ opacity: 0, scale: 0.98, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, x: -30, transition: { duration: 0.2 } }}
-              className={cn(
-                "rounded-xl border transition-all duration-200 overflow-hidden",
-                log.read
-                  ? "bg-card/40 border-border/50 opacity-60 shadow-none"
-                  : "bg-card border-l-4 border-l-rose-500 border-border shadow-md ring-1 ring-zinc-500/5",
-              )}
-            >
-              <div className="p-4 flex gap-4 items-start">
-                <div
-                  className={cn(
-                    "p-2.5 rounded-lg shrink-0 mt-0.5",
-                    log.type === "order"
-                      ? "bg-rose-500/10 text-rose-500 animate-bounce"
-                      : "bg-zinc-500/10 text-zinc-500",
-                  )}
-                >
-                  {log.type === "order" ? (
-                    <Volume2 className="w-4 h-4" />
-                  ) : (
-                    <Layers className="w-4 h-4" />
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex justify-between items-baseline gap-4">
-                    <h4
-                      className={cn(
-                        "text-sm font-bold tracking-tight",
-                        log.read ? "text-muted-foreground" : "text-foreground",
-                      )}
-                    >
-                      {log.title}
-                    </h4>
-                    <span className="text-[10px] text-muted-foreground font-semibold uppercase">
-                      {log.time}
-                    </span>
+          {logs.map((log) => {
+            const hasRedirect = log.type === "order" && log.bookingData;
+            return (
+              <motion.div
+                key={log.id}
+                layout
+                initial={{ opacity: 0, scale: 0.98, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, x: -30, transition: { duration: 0.2 } }}
+                onClick={() => {
+                  // Mark as read when clicked
+                  setLogs((prev) =>
+                    prev.map((item) =>
+                      item.id === log.id ? { ...item, read: true } : item
+                    )
+                  );
+                  // Redirect if order and has booking data
+                  if (hasRedirect) {
+                    const bookingId = log.bookingData._id || log.bookingData.payment_order_id || log.bookingData.booking_id;
+                    if (bookingId) {
+                      navigate(`/admin/panel/bookings?search=${encodeURIComponent(bookingId)}`);
+                    }
+                  }
+                }}
+                className={cn(
+                  "rounded-xl border transition-all duration-200 overflow-hidden",
+                  log.read
+                    ? "bg-card/40 border-border/50 opacity-60 shadow-none"
+                    : "bg-card border-l-4 border-l-rose-500 border-border shadow-md ring-1 ring-zinc-500/5",
+                  hasRedirect && "cursor-pointer hover:bg-zinc-50/50 dark:hover:bg-zinc-900/50"
+                )}
+              >
+                <div className="p-4 flex gap-4 items-center">
+                  <div
+                    className={cn(
+                      "p-2.5 rounded-lg shrink-0",
+                      log.type === "order"
+                        ? "bg-rose-500/10 text-rose-500 animate-bounce"
+                        : "bg-zinc-500/10 text-zinc-500",
+                    )}
+                  >
+                    {log.type === "order" ? (
+                      <Volume2 className="w-4 h-4" />
+                    ) : (
+                      <Layers className="w-4 h-4" />
+                    )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1 whitespace-pre-line leading-relaxed">
-                    {log.message}
-                  </p>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-baseline gap-4">
+                      <h4
+                        className={cn(
+                          "text-sm font-bold tracking-tight",
+                          log.read ? "text-muted-foreground" : "text-foreground",
+                        )}
+                      >
+                        {log.title}
+                      </h4>
+                      <span className="text-[10px] text-muted-foreground font-semibold uppercase">
+                        {log.time}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1 whitespace-pre-line leading-relaxed">
+                      {log.message}
+                    </p>
+                  </div>
+
+                  {/* Individual actions */}
+                  <div className="flex gap-2 shrink-0 ml-2">
+                    {!log.read && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLogs((prev) =>
+                            prev.map((item) =>
+                              item.id === log.id ? { ...item, read: true } : item
+                            )
+                          );
+                        }}
+                        className="p-2 rounded-lg bg-zinc-100 hover:bg-emerald-500/10 text-zinc-500 hover:text-emerald-600 transition-colors dark:bg-zinc-800"
+                        title="Mark as read"
+                      >
+                        <Check className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setLogs((prev) => prev.filter((item) => item.id !== log.id));
+                      }}
+                      className="p-2 rounded-lg bg-zinc-100 hover:bg-destructive/10 text-zinc-500 hover:text-destructive transition-colors dark:bg-zinc-800"
+                      title="Delete notification"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
 
         {/* Stream Empty Placeholder State View */}

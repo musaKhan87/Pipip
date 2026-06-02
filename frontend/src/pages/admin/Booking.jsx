@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent } from "../../components/ui/card";
 import { Button } from "../../components/ui/Button";
@@ -271,6 +272,7 @@ const roundToHour = (dateTimeStr) => {
 };
 
 export default function Bookings() {
+  const [searchParams] = useSearchParams();
   const [isOpen, setIsOpen] = useState(false);
   const [editingBooking, setEditingBooking] = useState(null);
   const [activeTab, setActiveTab] = useState("all");
@@ -281,6 +283,23 @@ export default function Bookings() {
   const licenseInputRef = useRef(null);
   const [expandedBookingId, setExpandedBookingId] = useState(null);
   const [customerSearch, setCustomerSearch] = useState("");
+
+  useEffect(() => {
+    const searchVal = searchParams.get("search");
+    if (searchVal) {
+      setSearchQuery(searchVal);
+      if (bookings && bookings.length > 0) {
+        const matched = bookings.find(
+          (b) =>
+            b._id === searchVal ||
+            b._id?.toLowerCase().includes(searchVal.toLowerCase())
+        );
+        if (matched) {
+          setExpandedBookingId(matched._id);
+        }
+      }
+    }
+  }, [searchParams, bookings]);
 
   // Completion dialog
   const [completionDialog, setCompletionDialog] = useState(null);
@@ -487,6 +506,7 @@ export default function Bookings() {
 
       const query = searchQuery.toLowerCase();
       return (
+        booking._id?.toLowerCase().includes(query) ||
         booking.customers?.name?.toLowerCase().includes(query) ||
         booking.customers?.phone?.includes(query) ||
         booking.bikes?.model?.toLowerCase().includes(query) ||
