@@ -73,6 +73,7 @@ import { useBikeAvailability } from "../../hooks/useBikeAvailability";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { Download } from "lucide-react";
+import html2canvas from "html2canvas";
 
 const statusColors = {
   pending:
@@ -183,53 +184,6 @@ const emptyCompletionData = {
   remarks: "",
 };
 
-// const roundToHour = (dateTimeStr) => {
-//   if (!dateTimeStr) return "";
-//   const date = new Date(dateTimeStr);
-//   const minutes = date.getMinutes();
-
-//   // If there are any minutes, round up to the next full hour
-//   if (minutes > 0) {
-//     date.setMinutes(0);
-//     date.setHours(date.getHours() + 1);
-//   }
-
-//   const year = date.getFullYear();
-//   const month = String(date.getMonth() + 1).padStart(2, "0");
-//   const day = String(date.getDate()).padStart(2, "0");
-//   const hours = String(date.getHours()).padStart(2, "0");
-
-//   return `${year}-${month}-${day}T${hours}:00`;
-// };
-
-// const roundToHour = (dateTimeStr) => {
-//   if (!dateTimeStr) return "";
-//   const date = new Date(dateTimeStr);
-
-//   // Convert to IST context if necessary before rounding
-//   const minutes = date.getMinutes();
-//   if (minutes > 0) {
-//     date.setMinutes(0);
-//     date.setHours(date.getHours() + 1);
-//   }
-
-//   // Format specifically for the datetime-local input which expects YYYY-MM-DDTHH:mm
-//   const options = {
-//     timeZone: "Asia/Kolkata",
-//     year: "numeric",
-//     month: "2-digit",
-//     day: "2-digit",
-//     hour: "2-digit",
-//     minute: "2-digit",
-//     hour12: false,
-//   };
-
-//   const formatter = new Intl.DateTimeFormat("en-IN", options);
-//   const parts = formatter.formatToParts(date);
-//   const f = (type) => parts.find((p) => p.type === type).value;
-
-//   return `${f("year")}-${f("month")}-${f("day")}T${f("hour")}:00`;
-// };
 
 const roundToHour = (dateTimeStr) => {
   if (!dateTimeStr) return "";
@@ -284,7 +238,6 @@ export default function Bookings() {
   const [expandedBookingId, setExpandedBookingId] = useState(null);
   const [customerSearch, setCustomerSearch] = useState("");
 
- 
   // Completion dialog
   const [completionDialog, setCompletionDialog] = useState(null);
   const [completionData, setCompletionData] = useState(emptyCompletionData);
@@ -324,6 +277,206 @@ export default function Bookings() {
 
   const [bikeSearch, setBikeSearch] = useState("");
   const updateCustomerMutation = useUpdateCustomer();
+
+  // ====== NEW INVOICE STATES & HANDLER ======
+  const [showInvoice, setShowInvoice] = useState(false);
+  const [generatedInvoice, setGeneratedInvoice] = useState(null);
+  // State to hold the actively targeted booking data for the background downloader
+  const [downloadingBooking, setDownloadingBooking] = useState(null);
+
+  const [isGeneratingBill, setIsGeneratingBill] = useState(false); // 👈 NEW LOADING STATE
+  const [fetchingBillId, setFetchingBillId] = useState(null);
+
+  const handleDownloadDirectInvoice = (booking) => {
+    // Dynamically look up details from your state definitions
+    const targetBikeId = booking.bike_id?._id || booking.bike_id;
+    const matchingBike = bikes?.find((bike) => bike._id === targetBikeId);
+
+    // Build invoice payload matching standard receipt component schema structures
+    setGeneratedInvoice({
+      bookingId: booking._id,
+      customerName:
+        booking.customer_name || booking.customers?.name || "Customer",
+      phone: booking.contact_number || booking.customers?.phone || "-",
+      bike: {
+        model: booking.vehicle_make_model || matchingBike?.model || "Bike",
+        number_plate:
+          matchingBike?.number_plate || booking.bikes?.number_plate || "",
+      },
+      startDate: booking.start_datetime,
+      endDate: booking.end_datetime,
+      amount: booking.total_amount,
+      deposit: booking.deposit_amount || 0,
+      paymentMethod: booking.payment_method || "cash",
+      status: booking.status,
+    });
+
+    setShowInvoice(true);
+    toast.success("Invoice view loaded successfully!");
+  };
+
+  // Background canvas processing effect for immediate receipt layout downloading
+  useEffect(() => {
+    if (!downloadingBooking) return;
+
+    const generateDirectImage = async () => {
+      setIsGeneratingBill(true); // START LOADING SPINNER NOW
+      const element = document.getElementById("direct-bill-hidden-node");
+      if (!element) {
+        setDownloadingBooking(null);
+        return;
+      }
+
+      let iframe = null;
+      try {
+        // 1. Create a hidden isolated iframe to render ONLY the bill element.
+        // This prevents html2canvas from traversing the main page's massive DOM.
+        iframe = document.createElement("iframe");
+        iframe.style.position = "absolute";
+        iframe.style.top = "-9999px";
+        iframe.style.left = "-9999px";
+        iframe.style.width = "500px";
+        iframe.style.visibility = "hidden";
+        document.body.appendChild(iframe);
+
+        const doc = iframe.contentDocument || iframe.contentWindow.document;
+
+        // 2. Copy all stylesheets and Tailwind styles from parent document to the iframe
+        const styles = document.querySelectorAll("style, link[rel='stylesheet']");
+        styles.forEach((style) => {
+          doc.head.appendChild(style.cloneNode(true));
+        });
+
+        // 3. Clone and insert the bill element inside the iframe body
+        const clonedElement = element.cloneNode(true);
+        clonedElement.style.position = "static";
+        clonedElement.style.margin = "0";
+        doc.body.appendChild(clonedElement);
+
+        // 4. Wait for any images (e.g. logo) inside the iframe to load
+        const images = Array.from(doc.querySelectorAll("img"));
+        await Promise.all(
+          images.map((img) => {
+            if (img.complete) return Promise.resolve();
+            return new Promise((resolve) => {
+              img.onload = resolve;
+              img.onerror = resolve;
+            });
+          })
+        );
+
+        // 5. Run html2canvas on the isolated element inside the iframe context
+        const canvas = await html2canvas(clonedElement, {
+          scale: 2, // Optimized resolution multiplier (faster than scale 3)
+          useCORS: true,
+          logging: false,
+          backgroundColor: "#ffffff",
+          onclone: (clonedDoc) => {
+            const receipt = clonedDoc.getElementById("direct-bill-hidden-node");
+            if (!receipt) return;
+
+            // Force paper print guidelines
+            receipt.style.backgroundColor = "white";
+            receipt.style.color = "black";
+            receipt.style.borderRadius = "0px";
+            receipt.style.border = "none";
+            receipt.style.boxShadow = "none";
+
+            // Hide decorative web components
+            const webHeader = clonedDoc.querySelector(
+              ".gradient-sunset-direct",
+            );
+            if (webHeader) webHeader.style.display = "none";
+
+            // Enforce layout parameters for the Tax Invoice header block
+            const printHeader = clonedDoc.querySelector(".print-header-direct");
+            if (printHeader) {
+              printHeader.style.setProperty("display", "flex", "important");
+              printHeader.style.flexDirection = "row";
+              printHeader.style.justifyContent = "space-between";
+              printHeader.style.padding = "2rem";
+              printHeader.style.borderBottom = "4px solid black";
+              printHeader
+                .querySelectorAll("h1, h2, p")
+                .forEach((el) => (el.style.color = "black"));
+            }
+
+            const content = clonedDoc.querySelector(".content-area-direct");
+            if (content) {
+              content.style.backgroundColor = "white";
+              content.style.padding = "2rem";
+            }
+
+            // Standardize copy presentation to pure black ink
+            const allText = clonedDoc.querySelectorAll(
+              "p, span, h1, h2, h4, div",
+            );
+            allText.forEach((text) => {
+              text.style.color = "black";
+              text.style.borderColor = "black";
+            });
+
+            // Outline wrapper styling configuration
+            const amountBox = clonedDoc.querySelector(".amount-box-direct");
+            if (amountBox) {
+              amountBox.style.backgroundColor = "white";
+              amountBox.style.border = "2px solid black";
+              amountBox.style.borderRadius = "0px";
+              amountBox.style.padding = "2rem";
+            }
+
+            const instructions = clonedDoc.querySelector(
+              ".instructions-direct",
+            );
+            if (instructions) {
+              instructions.style.backgroundColor = "white";
+              instructions.style.border = "1px solid black";
+              instructions.style.color = "black";
+            }
+
+            const badge = clonedDoc.querySelector(".badge-direct");
+            if (badge) {
+              badge.style.setProperty("background-color", "white", "important");
+              badge.style.setProperty("background-image", "none", "important");
+              badge.style.setProperty("color", "black", "important");
+              badge.style.setProperty("border", "1px solid black", "important");
+            }
+          },
+        });
+
+        // Generate download action
+        const image = canvas.toDataURL("image/png", 1.0);
+        const link = document.createElement("a");
+        link.href = image;
+        link.download = `Receipt-${downloadingBooking._id}.png`;
+        link.click();
+        toast.success("Bill downloaded successfully!");
+      } catch (err) {
+        console.error("Direct download execution failed:", err);
+        toast.error("Could not export receipt image file.");
+      } finally {
+        // Cleanup temporary iframe
+        if (iframe && iframe.parentNode) {
+          iframe.parentNode.removeChild(iframe);
+        }
+        setDownloadingBooking(null);
+        setIsGeneratingBill(false); 
+      }
+    };
+
+    // Give React sufficient cycle overhead layout tick timing to render element nodes cleanly
+    const latencyTimeout = setTimeout(() => {
+      generateDirectImage();
+    }, 150);
+
+    return () => clearTimeout(latencyTimeout);
+  }, [downloadingBooking, bikes]);
+
+  const handleBillClick = (booking) => {
+    setFetchingBillId(booking._id);
+    setIsGeneratingBill(true);
+    setDownloadingBooking(booking);
+  };
 
   const filteredBikes = useMemo(() => {
     if (!availableBikes) return [];
@@ -402,23 +555,22 @@ export default function Bookings() {
     checkAvailability,
   ]);
 
-   useEffect(() => {
-     const searchVal = searchParams.get("search");
-     if (searchVal) {
-       setSearchQuery(searchVal);
-       if (bookings && bookings.length > 0) {
-         const matched = bookings.find(
-           (b) =>
-             b._id === searchVal ||
-             b._id?.toLowerCase().includes(searchVal.toLowerCase()),
-         );
-         if (matched) {
-           setExpandedBookingId(matched._id);
-         }
-       }
-     }
-   }, [searchParams, bookings]);
-
+  useEffect(() => {
+    const searchVal = searchParams.get("search");
+    if (searchVal) {
+      setSearchQuery(searchVal);
+      if (bookings && bookings.length > 0) {
+        const matched = bookings.find(
+          (b) =>
+            b._id === searchVal ||
+            b._id?.toLowerCase().includes(searchVal.toLowerCase()),
+        );
+        if (matched) {
+          setExpandedBookingId(matched._id);
+        }
+      }
+    }
+  }, [searchParams, bookings]);
 
   const handleExport = () => {
     if (!bookings || bookings.length === 0) {
@@ -479,22 +631,7 @@ export default function Bookings() {
     saveAs(fileData, `Bookings_${Date.now()}.xlsx`);
   };
 
-  // const handleAssignBike = async () => {
-  //   if (!assignDialog || !assignBikeId) return;
-  //   try {
-  //     await assignBikeMutation.mutateAsync({
-  //       id: assignDialog,
-  //       bike_id: assignBikeId,
-  //     });
-  //     setAssignDialog(null);
-  //     setAssignBikeId("");
-  //     toast.success("Scooter assigned successfully!");
-  //   } catch (err) {
-  //     toast.error(err?.response?.data?.message || "Failed to assign bike");
-  //   }
-  // };
-
-  // Edit form state
+ 
 
   const [editFormData, setEditFormData] = useState(emptyFormData);
 
@@ -564,45 +701,7 @@ export default function Bookings() {
     toast.success("Rental started");
   };
 
-  // Completion confirm
-  // const handleCompletionConfirm = async () => {
-  //   if (!completionDialog) return;
-  //   const booking = bookings?.find((b) => b._id === completionDialog);
-  //   if (!booking) return;
-
-  //   const penalty = Number(completionData.penalty_amount) || 0;
-  //   const challan = Number(completionData.challan_amount) || 0;
-  //   const damage = Number(completionData.damage_cost) || 0;
-  //   const totalDeductions = penalty + challan + damage;
-  //   const depositAfter = Math.max(
-  //     0,
-  //     (booking.deposit_amount || 0) - totalDeductions,
-  //   );
-
-  //   await updateBooking.mutateAsync({
-  //     id: completionDialog,
-  //     fuel_in_liters: Number(completionData.fuel_in_liters) || null,
-  //     penalty_amount: penalty,
-  //     challan_amount: challan,
-  //     damage_cost: damage,
-  //     payment_method: completionData.payment_method,
-  //     remarks: completionData.remarks || booking.remarks || undefined,
-  //   });
-  //   await updateStatus.mutateAsync({
-  //     id: completionDialog,
-  //     status: "completed",
-  //   });
-  //   setCompletionDialog(null);
-  //   setCompletionData(emptyCompletionData);
-  //   if (totalDeductions > 0) {
-  //     toast.success(
-  //       `Ride completed. ₹${totalDeductions} deducted from deposit. Refundable: ₹${depositAfter}`,
-  //     );
-  //   } else {
-  //     toast.success("Ride completed successfully");
-  //   }
-  // };
-
+  
   const handleCompletionConfirm = async () => {
     if (!completionDialog) return;
 
@@ -753,242 +852,7 @@ export default function Bookings() {
 
     setExtraDocPreviews((prev) => prev.filter((_, i) => i !== index));
   };
-  // Create booking
-  // const handleCreateBooking = async (e) => {
-  //   if (e) e.preventDefault();
-
-  //   // 1. Prepare Data
-  //   const dataToSend = new FormData();
-  //   const selectedBike = bikes?.find((b) => b._id === formData.bike_id);
-  //   const selectedCust = customers?.find((c) => c._id === formData.customer_id);
-
-  //      let customerId = formData.customer_id;
-
-  //      // 3️⃣ CREATE CUSTOMER FIRST (IF NEW)
-  //      if (formData.is_new_customer) {
-  //        const customerFormData = new FormData();
-  //        customerFormData.append("name", newBooking.customer_name);
-  //        customerFormData.append("phone", newBooking.customer_phone);
-  //        customerFormData.append("email", newBooking.customer_email || "");
-
-  //        if (!formData.aadhaar_image) {
-  //          toast.error("Aadhaar photo is required");
-  //          return;
-  //        }
-
-  //        if (!formData.license_image) {
-  //          toast.error("License photo is required");
-  //          return;
-  //        }
-  //        customerFormData.append("aadhaar_image", newBooking.aadhaar_image);
-  //        customerFormData.append("license_image", newBooking.license_image);
-
-  //        const customer = await createCustomer.mutateAsync(customerFormData);
-  //        customerId = customer._id; // ✅ THIS IS THE KEY FIX
-  //      }
-
-  //   // 2. Mandatory Fields (Match your Schema exactly)
-  //   dataToSend.append("bike_id", formData.bike_id);
-  //   dataToSend.append("customer_id", formData.customer_id);
-  //   dataToSend.append("start_datetime", formData.start_datetime);
-  //   dataToSend.append("end_datetime", formData.end_datetime);
-
-  //   // Required strings that were missing
-  //   dataToSend.append("customer_name", selectedCust?.name || "");
-  //   dataToSend.append("contact_number", selectedCust?.phone || "");
-  //   dataToSend.append(
-  //     "vehicle_make_model",
-  //     selectedBike ? `${selectedBike.brand} ${selectedBike.model}` : "Bike",
-  //   );
-  //   dataToSend.append("account_manager", "Admin"); // Required by Schema
-
-  //   dataToSend.append("lead_source", formData.lead_source || "other");
-  //   dataToSend.append("source_name", formData.source_name || "Direct");
-  //   dataToSend.append("rental_type", formData.rental_type || "daily");
-  //   dataToSend.append("deposit_amount", formData.deposit_amount || 0);
-  //   dataToSend.append("total_amount", formData.total_amount || 0);
-  //   dataToSend.append("payment_method", "cash");
-
-  //   // 3. Files (Must match the fieldnames used in Controller)
-  //   if (formData.aadhaar_file) {
-  //     dataToSend.append("customer_id_proof_files", formData.aadhaar_file);
-  //   }
-  //   if (formData.license_file) {
-  //     dataToSend.append("customer_license_files", formData.license_file);
-  //   }
-
-  //   try {
-  //     setUploading(true);
-  //     // Use the mutation hook you provided
-  //     await adminCreateMutation.mutateAsync(dataToSend);
-  //     setIsOpen(false);
-  //     resetForm();
-  //   } catch (err) {
-  //     // Errors will be caught by the onError in your hook
-  //   } finally {
-  //     setUploading(false);
-  //   }
-  // };
-
-  // const handleCreateBooking = async (e) => {
-  //   if (e) e.preventDefault();
-
-  //   try {
-  //     setUploading(true);
-
-  //     let finalCustomerId = formData.customer_id;
-  //     let finalCustomerName = formData.customer_name;
-  //     let finalCustomerPhone = formData.customer_phone;
-  //     let finalCustomerLocation = formData.customer_location;
-
-  //     // 1️⃣ CREATE CUSTOMER FIRST (IF NEW)
-  //     // if (formData.is_new_customer) {
-  //     //   console.log("🚀 Step 1: Creating new customer...");
-  //     //   const customerFormData = new FormData();
-
-  //     //   // Backend 'Customer' model expects: name, phone, email
-  //     //   customerFormData.append("name", formData.customer_name);
-  //     //   customerFormData.append("phone", formData.customer_phone);
-  //     //   customerFormData.append("email", formData.customer_email || "");
-
-  //     //   // IMPORTANT: Backend expects 'aadhaar_image' and 'license_image'
-  //     //   // Your console shows they are stored in 'aadhaar_file' and 'license_file'
-  //     //   if (!formData.aadhaar_file || !formData.license_file) {
-  //     //     toast.error("Aadhaar and License files are required");
-  //     //     setUploading(false);
-  //     //     return;
-  //     //   }
-
-  //     //   customerFormData.append("aadhaar_image", formData.aadhaar_file);
-  //     //   customerFormData.append("license_image", formData.license_file);
-
-  //     //   // Call the customer creation API
-  //     //   const savedCustomer =
-  //     //     await createCustomer.mutateAsync(customerFormData);
-
-  //     //   // Get the ID generated by MongoDB
-  //     //   finalCustomerId = savedCustomer._id;
-  //     //   console.log("✅ Customer Created with ID:", finalCustomerId);
-  //     // }
-
-  //     // ... inside handleCreateBooking
-  //     if (formData.is_new_customer) {
-  //       console.log("🚀 Step 1: Creating new customer...");
-  //       const customerFormData = new FormData();
-
-  //       customerFormData.append("name", formData.customer_name);
-  //       customerFormData.append("phone", formData.customer_phone);
-  //       customerFormData.append("email", formData.customer_email || "");
-  //       customerFormData.append("address", formData.customer_location);
-
-  //       // Legacy Aadhaar and License
-  //       if (!formData.aadhaar_file || !formData.license_file) {
-  //         toast.error("Aadhaar and License files are required");
-  //         setUploading(false);
-  //         return;
-  //       }
-  //       customerFormData.append("aadhaar_image", formData.aadhaar_file);
-  //       customerFormData.append("license_image", formData.license_file);
-
-  //       // ADD THESE LINES (The Fix)
-  //       submissionData.append(
-  //         "provider_partner_share",
-  //         formData.provider_partner_share || 0,
-  //       );
-  //       submissionData.append(
-  //         "reference_partner_share",
-  //         formData.reference_partner_share || 0,
-  //       );
-
-  //       // --- NEW CHANGE START ---
-  //       // Append the 5 extra documents (from your new state)
-  //       if (extraDocFiles && extraDocFiles.length > 0) {
-  //         extraDocFiles.forEach((file) => {
-  //           customerFormData.append("extra_documents", file);
-  //         });
-  //       }
-  //       // --- NEW CHANGE END ---
-
-  //       const savedCustomer =
-  //         await createCustomer.mutateAsync(customerFormData);
-  //       finalCustomerId = savedCustomer._id;
-  //       console.log("✅ Customer Created with ID:", finalCustomerId);
-  //     }
-  //     // ... rest of the booking logic
-  //     else {
-  //       // EXISTING CUSTOMER LOGIC
-  //       const selectedCust = customers?.find(
-  //         (c) => c._id === formData.customer_id,
-  //       );
-  //       if (!selectedCust) {
-  //         toast.error("Please select a customer");
-  //         setUploading(false);
-  //         return;
-  //       }
-  //       finalCustomerId = selectedCust._id;
-  //       finalCustomerName = selectedCust.name;
-  //       finalCustomerPhone = selectedCust.phone;
-  //     }
-
-  //     // 2️⃣ PREPARE BOOKING DATA
-  //     console.log("🚀 Step 2: Preparing booking data...");
-  //     const bookingData = new FormData();
-  //     const selectedBike = bikes?.find((b) => b._id === formData.bike_id);
-
-  //     // Mandatory Booking Fields
-  //     bookingData.append("customer_id", finalCustomerId);
-  //     bookingData.append("bike_id", formData.bike_id);
-  //     bookingData.append("customer_name", finalCustomerName);
-  //     bookingData.append("contact_number", finalCustomerPhone);
-
-  //     // bookingData.append("start_datetime", formData.start_datetime);
-  //     // bookingData.append("end_datetime", formData.end_datetime);
-
-  //     // Existing code in handleCreateBooking
-  //     bookingData.append(
-  //       "start_datetime",
-  //       new Date(formData.start_datetime).toISOString(),
-  //     );
-  //     bookingData.append(
-  //       "end_datetime",
-  //       new Date(formData.end_datetime).toISOString(),
-  //     );
-  //     bookingData.append(
-  //       "vehicle_make_model",
-  //       selectedBike ? `${selectedBike.brand} ${selectedBike.model}` : "Bike",
-  //     );
-  //     bookingData.append(
-  //       "account_manager",
-  //       formData.account_manager || "Admin",
-  //     );
-  //     bookingData.append("rental_type", formData.rental_type || "daily");
-  //     bookingData.append("lead_source", formData.lead_source || "other");
-  //     bookingData.append("source_name", formData.source_name || "Direct");
-  //     bookingData.append("deposit_amount", formData.deposit_amount || 0);
-  //     bookingData.append("total_amount", formData.total_amount || 0);
-  //     bookingData.append("payment_method", "cash");
-
-  //     // Optional Booking Fields
-  //     bookingData.append("fuel_quantity", formData.fuel_quantity || 0);
-  //     bookingData.append("notes", formData.notes || "");
-  //     bookingData.append("remarks", formData.remarks || "");
-
-  //     // 3️⃣ SEND TO BACKEND
-  //     await adminCreateMutation.mutateAsync(bookingData);
-
-  //     setIsOpen(false);
-  //     resetForm();
-  //     toast.success("Booking completed successfully!");
-  //   } catch (err) {
-  //     console.error("❌ Process Error:", err);
-  //     toast.error(
-  //       err.response?.data?.message || "Failed to create customer or booking",
-  //     );
-  //   } finally {
-  //     setUploading(false);
-  //   }
-  // };
-
+ 
   const handleCreateBooking = async (e) => {
     if (e) e.preventDefault();
 
@@ -2263,52 +2127,7 @@ export default function Bookings() {
         </DialogContent>
       </Dialog>
 
-      {/* <Dialog
-        open={!!assignDialog}
-        onOpenChange={(open) => !open && setAssignDialog(null)}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Bike className="w-5 h-5 text-primary" /> Assign Scooter
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <p className="text-sm text-muted-foreground">
-              Select an available scooter to assign to this booking.
-            </p>
-            <div className="space-y-2">
-              <Label>Available Scooters</Label>
-              <Select value={assignBikeId} onValueChange={setAssignBikeId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a scooter" />
-                </SelectTrigger>
-                <SelectContent>
-                  {bikes
-                    ?.filter((b) => b.status === "available")
-                    .map((bike) => (
-                      <SelectItem key={bike._id} value={bike._id}>
-                        {bike.model} — {bike.number_plate} ({bike.cc}cc)
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAssignDialog(null)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAssignBike}
-              className="gradient-sunset"
-              disabled={!assignBikeId || assignBikeMutation.isPending}
-            >
-              {assignBikeMutation.isPending ? "Assigning..." : "Assign Scooter"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog> */}
+      
 
       <div className="flex flex-col gap-4">
         <div className="relative w-full max-w-md">
@@ -2573,6 +2392,48 @@ export default function Bookings() {
                               <ChevronDown className="w-4 h-4 mr-1" />
                             )}
                             {isExpanded ? "Collapse" : "View"}
+                          </Button>
+
+                          {/* <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={isGeneratingBill} // Disables clicking while downloading
+                            onClick={() => setDownloadingBooking(booking)}
+                            className="text-emerald-600 hover:bg-emerald-50 border-emerald-200 dark:text-emerald-400 dark:hover:bg-emerald-950/30 dark:border-emerald-800"
+                          >
+                            {isGeneratingBill &&
+                            downloadingBooking?._id === booking._id ? (
+                              <>
+                                <span className="animate-spin mr-1 inline-block w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full dark:border-emerald-400"></span>
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <Download className="w-4 h-4 mr-1" />
+                                Bill
+                              </>
+                            )}
+                          </Button> */}
+
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={isGeneratingBill} // Disables clicking while downloading
+                            onClick={() => handleBillClick(booking)}
+                            className="text-emerald-600 hover:bg-emerald-50 border-emerald-200 dark:text-emerald-400 dark:hover:bg-emerald-950/30 dark:border-emerald-800"
+                          >
+                            {isGeneratingBill &&
+                            fetchingBillId === booking._id ? ( // 👈 Updated comparison check
+                              <>
+                                <span className="animate-spin mr-1 inline-block w-4 h-4 border-2 border-emerald-600 border-t-transparent rounded-full dark:border-emerald-400"></span>
+                                Saving...
+                              </>
+                            ) : (
+                              <>
+                                <Download className="w-4 h-4 mr-1" />
+                                Bill
+                              </>
+                            )}
                           </Button>
 
                           {(booking.status === "active" ||
@@ -2865,6 +2726,204 @@ export default function Bookings() {
               </p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ================= ✅ OFF-SCREEN INVOICE ENGINE RENDER LAYER ================= */}
+      {downloadingBooking && (
+        <div
+          style={{
+            position: "absolute",
+            top: "-9999px",
+            left: "-9999px",
+            width: "500px",
+            overflow: "hidden",
+          }}
+        >
+          {(() => {
+            const targetBikeId =
+              downloadingBooking.bike_id?._id || downloadingBooking.bike_id;
+            const matchingBike = bikes?.find((b) => b._id === targetBikeId);
+            const rentalBikeModel =
+              matchingBike?.model ||
+              downloadingBooking.bike_id?.model ||
+              "Scooter";
+            // const issuedTimestamp = downloadingBooking.createdAt
+            //   ? new Date(downloadingBooking.createdAt)
+            //   : new Date();
+            //  Updated Correct Line (Checks alternative date paths, falls back to today)
+            const issuedTimestamp = downloadingBooking.createdAt
+              ? new Date(downloadingBooking.createdAt)
+              : downloadingBooking.start_datetime
+                ? new Date(downloadingBooking.start_datetime)
+                : new Date();
+            return (
+              <div
+                id="direct-bill-hidden-node"
+                style={{
+                  width: "500px",
+                  backgroundColor: "#ffffff",
+                  padding: "10px",
+                }}
+              >
+                {/* Formal Document Top Line */}
+                <div className="print-header-direct flex justify-between items-start p-8 border-b-4 border-black mb-6">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src="/logo.jpeg"
+                      alt="Pipip Logo"
+                      className="w-12 h-12 object-contain"
+                    />
+                    <div>
+                      <h1 className="text-3xl font-black tracking-tighter text-black">
+                        PIPIP RENTALS
+                      </h1>
+                      <p className="text-xs text-black italic">
+                        Premium Bike Rental Service
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <h2 className="text-xl font-bold text-black uppercase">
+                      Tax Invoice
+                    </h2>
+                    <p className="text-xs text-black font-mono">
+                      #{downloadingBooking._id}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="content-area-direct p-8 space-y-8">
+                  <div className="flex flex-row justify-between gap-4 border-b border-dashed border-black pb-6">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-black uppercase tracking-widest">
+                        Order ID
+                      </span>
+                      <p className="text-sm font-mono font-bold text-black">
+                        #{downloadingBooking._id}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className="text-[10px] font-black text-black uppercase tracking-widest">
+                        Issue Date
+                      </span>
+                      <p className="text-sm font-bold text-black">
+                        {issuedTimestamp.toLocaleDateString("en-IN", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="text-[10px] font-black text-black uppercase tracking-[0.2em] mb-4">
+                      Summary Details
+                    </h4>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-black">Customer Name</span>
+                      <span className="font-bold text-black">
+                        {downloadingBooking.customer_name ||
+                          downloadingBooking.customer_id?.name ||
+                          "-"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-black">Contact Number</span>
+                      <span className="font-bold text-black">
+                        +91{" "}
+                        {downloadingBooking.contact_number ||
+                          downloadingBooking.customer_id?.phone ||
+                          "-"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-black">Bike Model</span>
+                      <span className="font-bold text-black">
+                        {rentalBikeModel}
+                      </span>
+                    </div>
+
+                    {/* <div className="flex justify-between items-center text-sm">
+                      <span className="text-black">Bike Model</span>
+                      <span className="font-bold text-black">
+                        {matchingBike?.bike_name || rentalBikeModel}
+                      </span>
+                    </div> */}
+                    <div className="flex justify-between items-start text-sm">
+                      <span className="text-black">Rental Period</span>
+                      <div className="text-right text-black">
+                        <p className="font-bold">
+                          {downloadingBooking.start_datetime
+                            ? new Date(
+                                downloadingBooking.start_datetime,
+                              ).toLocaleString("en-IN", {
+                                month: "short",
+                                day: "2-digit",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "-"}
+                        </p>
+                        <p className="text-[10px]">
+                          to{" "}
+                          {downloadingBooking.end_datetime
+                            ? new Date(
+                                downloadingBooking.end_datetime,
+                              ).toLocaleString("en-IN", {
+                                month: "short",
+                                day: "2-digit",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })
+                            : "-"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="amount-box-direct bg-white p-8 border-2 border-black">
+                    <div className="flex justify-between items-end">
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-black tracking-widest">
+                          Total Amount Paid
+                        </span>
+                        <p className="text-5xl font-black text-black">
+                          ₹{downloadingBooking.total_amount}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="badge-direct text-[10px] font-black px-3 py-1 uppercase border border-black bg-white text-black">
+                          {downloadingBooking.payment_method === "online"
+                            ? "Verified PAID"
+                            : "Pay on Pickup"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="instructions-direct p-4 text-[10px] text-black leading-relaxed border border-black bg-white">
+                    <p className="font-bold mb-1 uppercase tracking-tighter">
+                      Instructions:
+                    </p>
+                    <p>
+                      • Carry original identification and driver documents. No
+                      digital snapshots copies accepted.
+                    </p>
+                    <p>
+                      • Helmets provided based on active stock availability
+                      metrics.
+                    </p>
+                    <p>
+                      • Vehicle should be returned at designated area collection
+                      locations.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>
